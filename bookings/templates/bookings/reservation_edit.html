@@ -1,0 +1,496 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование бронирования{% endblock %}
+
+{% block extra_css %}
+<style>
+    .date-buttons, .time-buttons, .duration-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+    .date-btn, .time-btn, .duration-btn {
+        padding: 0.75rem 1.5rem;
+        border: 2px solid #e1e8ed;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        font-weight: 500;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        color: #2c3e50;
+    }
+    .date-btn:hover, .time-btn:hover, .duration-btn:hover {
+        border-color: #667eea;
+        background: #ecf0f1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+    }
+    .date-btn.active, .time-btn.active, .duration-btn.active {
+        border-color: #667eea;
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .guests-counter {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .counter-btn {
+        width: 44px;
+        height: 44px;
+        border: 2px solid #e1e8ed;
+        background: white;
+        border-radius: 8px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+    .counter-btn:hover {
+        border-color: #667eea;
+        background: #ecf0f1;
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    }
+    .counter-value {
+        min-width: 50px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    .time-btn.disabled, .duration-btn.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+        background: #fee;
+        color: #c33;
+        border-color: #e74c3c;
+        text-decoration: line-through;
+    }
+    .dishes-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+        display: none;
+    }
+    .dishes-section.active {
+        display: block;
+    }
+    .dishes-toggle {
+        margin-top: 1rem;
+        background: none;
+        border: none;
+        color: #667eea;
+        cursor: pointer;
+        font-size: 0.95rem;
+        text-decoration: underline;
+        padding: 0;
+    }
+    .dishes-toggle:hover {
+        color: #5568d3;
+    }
+    .dishes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    .dish-card {
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 1rem;
+        background: white;
+        transition: all 0.3s ease;
+    }
+    .dish-card.unavailable {
+        border-color: #e74c3c;
+        background: #fff5f5;
+        opacity: 0.7;
+    }
+    .dish-card.unavailable h4 {
+        color: #e74c3c;
+    }
+    .dish-card.unavailable .dish-price {
+        color: #e74c3c;
+    }
+    .dish-card.unavailable input {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    .dish-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-bottom: 0.75rem;
+    }
+    .dish-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.1rem;
+        color: #2c3e50;
+    }
+    .dish-card .dish-price {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #667eea;
+        margin: 0.5rem 0;
+    }
+    .dish-card .dish-description {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin: 0.5rem 0;
+        min-height: 40px;
+    }
+    .dish-quantity {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    .dish-quantity input {
+        width: 60px;
+        padding: 0.5rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 4px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Редактирование бронирования</h2>
+    <p style="color: #666; margin-bottom: 1rem;">
+        <strong>Важно:</strong> Бронирование можно сделать максимум за 2 рабочих дня вперед.
+    </p>
+    
+    <form method="post" id="reservationForm">
+        {% csrf_token %}
+        
+        <!-- Информация о текущем столике (только для отображения) -->
+        {% if reservation.table %}
+        <div class="form-group">
+            <label>Текущий столик:</label>
+            <p style="margin: 0.5rem 0; padding: 0.75rem; background: #f8f9fa; border-radius: 4px;">
+                Столик №{{ reservation.table.table_number }} ({{ reservation.table.seats }} мест)
+            </p>
+            <p style="font-size: 0.9rem; color: #666; margin-top: 0.5rem;">
+                При изменении времени/даты столик будет выбран автоматически
+            </p>
+        </div>
+        {% else %}
+        <div class="form-group">
+            <label>Тип бронирования:</label>
+            <p style="margin: 0.5rem 0; padding: 0.75rem; background: #f8f9fa; border-radius: 4px;">
+                Заказ на вынос (без столика)
+            </p>
+        </div>
+        {% endif %}
+        
+        <!-- Количество гостей -->
+        <div class="form-group">
+            <label>Количество гостей:</label>
+            <div class="guests-counter">
+                <button type="button" class="counter-btn" onclick="changeGuests(-1)">-</button>
+                <span class="counter-value" id="guestsValue">{{ selected_guests_count }}</span>
+                <button type="button" class="counter-btn" onclick="changeGuests(1)">+</button>
+            </div>
+            <input type="hidden" name="guests_count" id="guests_count" value="{{ selected_guests_count }}" required>
+        </div>
+        
+        <!-- Дата -->
+        <div class="form-group">
+            <label>Дата:</label>
+            <div class="date-buttons">
+                {% for date_key, date_label, date_obj in available_dates %}
+                    <button type="button" class="date-btn {% if date_key == selected_date_key %}active{% endif %}" 
+                            data-date="{{ date_key }}" onclick="selectDate('{{ date_key }}')">
+                        {{ date_label }}
+                    </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="date" id="selected_date" value="{{ selected_date_key }}" required>
+            <input type="hidden" id="reservation_id" value="{{ reservation.pk }}">
+        </div>
+        
+        <!-- Время -->
+        <div class="form-group">
+            <label>Время:</label>
+            <div class="time-buttons">
+                {% for time in time_slots %}
+                    <button type="button" class="time-btn {% if time == selected_time %}active{% endif %}" 
+                            data-time="{{ time }}" onclick="selectTime('{{ time }}')">
+                        {{ time }}
+                    </button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="time" id="selected_time" value="{{ selected_time }}" required>
+        </div>
+        
+        <!-- Длительность -->
+        <div class="form-group">
+            <label>Длительность:</label>
+            <div class="duration-buttons">
+                <button type="button" class="duration-btn {% if selected_duration == 25 %}active{% endif %}" 
+                        data-duration="25" onclick="selectDuration(25)">
+                    25 минут
+                </button>
+                <button type="button" class="duration-btn {% if selected_duration == 55 %}active{% endif %}" 
+                        data-duration="55" onclick="selectDuration(55)">
+                    55 минут
+                </button>
+            </div>
+            <input type="hidden" name="duration" id="selected_duration" value="{{ selected_duration }}" required>
+        </div>
+        
+        <button type="submit" class="btn btn-success" style="margin-top: 1rem;">Сохранить изменения</button>
+        <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Отмена</a>
+        
+        <!-- Кнопка для показа секции предзаказа -->
+        <button type="button" class="dishes-toggle" onclick="toggleDishesSection()">
+            Предзаказать блюда
+        </button>
+        
+        <!-- Секция предзаказа блюд (изначально скрыта) -->
+        <div id="dishesSection" class="dishes-section">
+            <h3 style="margin-bottom: 1rem;">Предзаказ блюд</h3>
+            {% if all_dishes %}
+            <div class="dishes-grid">
+                {% for dish in all_dishes %}
+                <div class="dish-card" data-dish-id="{{ dish.pk }}">
+                    {% if dish.image %}
+                        <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
+                    {% else %}
+                        <div style="width: 100%; height: 150px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; margin-bottom: 0.75rem;">
+                            Нет изображения
+                        </div>
+                    {% endif %}
+                    <h4>{{ dish.name }}</h4>
+                    <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
+                    <div class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:15 }}</div>
+                    <div class="dish-quantity">
+                        <label for="dish_quantity_{{ dish.pk }}" style="font-size: 0.9rem;">Количество:</label>
+                        <input type="number" 
+                               name="dish_quantity_{{ dish.pk }}" 
+                               id="dish_quantity_{{ dish.pk }}" 
+                               value="{% if current_dishes %}{% for dish_id, qty in current_dishes.items %}{% if dish_id == dish.pk %}{{ qty }}{% endif %}{% endfor %}{% else %}0{% endif %}" 
+                               min="0" 
+                               max="{{ dish.available_quantity }}">
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p>Нет доступных блюд для предзаказа.</p>
+            {% endif %}
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let guestsCount = {{ selected_guests_count }};
+    
+    // Все возможные временные слоты
+    const allTimeSlots = [
+        {% for time in time_slots %}'{{ time }}'{% if not forloop.last %}, {% endif %}{% endfor %}
+    ];
+    
+    // Все возможные продолжительности
+    const allDurations = [25, 55];
+    
+    // Блюда в меню для каждой даты
+    const dishesByDate = {{ dishes_by_date|safe }};
+    
+    function changeGuests(delta) {
+        guestsCount += delta;
+        if (guestsCount < 1) guestsCount = 1;
+        if (guestsCount > 20) guestsCount = 20;
+        document.getElementById('guestsValue').textContent = guestsCount;
+        document.getElementById('guests_count').value = guestsCount;
+        updateAvailableSlots();
+    }
+    
+    function selectDate(dateKey) {
+        document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-date="${dateKey}"]`).classList.add('active');
+        document.getElementById('selected_date').value = dateKey;
+        updateAvailableSlots();
+        updateDishAvailability(dateKey);
+    }
+    
+    function updateDishAvailability(dateKey) {
+        const availableDishIds = dishesByDate[dateKey] || [];
+        
+        // Обновляем все карточки блюд
+        document.querySelectorAll('.dish-card').forEach(card => {
+            const dishId = parseInt(card.getAttribute('data-dish-id'));
+            const input = card.querySelector('input[type="number"]');
+            
+            if (availableDishIds.includes(dishId)) {
+                // Блюдо доступно
+                card.classList.remove('unavailable');
+                if (input) {
+                    input.disabled = false;
+                    input.value = Math.max(0, parseInt(input.value) || 0);
+                }
+            } else {
+                // Блюдо недоступно
+                card.classList.add('unavailable');
+                if (input) {
+                    input.disabled = true;
+                    input.value = 0;
+                }
+            }
+        });
+    }
+    
+    function selectTime(time) {
+        document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+        const btn = document.querySelector(`[data-time="${time}"]`);
+        if (btn && !btn.classList.contains('disabled')) {
+            btn.classList.add('active');
+            document.getElementById('selected_time').value = time;
+            // Получаем доступные слоты для обновления длительностей
+            const date = document.getElementById('selected_date').value;
+            const guests = document.getElementById('guests_count').value;
+            if (date && guests) {
+                fetch(`/dashboard/api/available-slots/?date=${date}&guests_count=${guests}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateAvailableDurations(data.available_slots || {});
+                    })
+                    .catch(error => console.error('Ошибка:', error));
+            }
+        }
+    }
+    
+    function selectDuration(duration) {
+        document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
+        const btn = document.querySelector(`[data-duration="${duration}"]`);
+        if (btn && !btn.classList.contains('disabled')) {
+            btn.classList.add('active');
+            document.getElementById('selected_duration').value = duration;
+        }
+    }
+    
+    // Обновляет доступные временные слоты на основе занятости
+    function updateAvailableSlots() {
+        const date = document.getElementById('selected_date').value;
+        const guests = document.getElementById('guests_count').value;
+        
+        if (!date || !guests) {
+            return;
+        }
+        
+        // Используем новый API для проверки доступности с учетом количества персон
+        fetch(`/dashboard/api/available-slots/?date=${date}&guests_count=${guests}`)
+            .then(response => response.json())
+            .then(data => {
+                const availableSlots = data.available_slots || {};
+                
+                // Обновляем видимость временных кнопок
+                allTimeSlots.forEach(time => {
+                    const btn = document.querySelector(`[data-time="${time}"]`);
+                    if (btn) {
+                        // Проверяем, доступен ли этот временной слот хотя бы для одной продолжительности
+                        let isAvailable = allDurations.some(duration => {
+                            return availableSlots[duration] && availableSlots[duration].includes(time);
+                        });
+                        
+                        if (!isAvailable) {
+                            btn.classList.add('disabled');
+                        } else {
+                            btn.classList.remove('disabled');
+                        }
+                    }
+                });
+                
+                // Если текущее выбранное время недоступно, выбираем первое доступное
+                const selectedTime = document.getElementById('selected_time').value;
+                const selectedTimeBtn = document.querySelector(`[data-time="${selectedTime}"]`);
+                if (selectedTimeBtn && selectedTimeBtn.classList.contains('disabled')) {
+                    const firstAvailable = allTimeSlots.find(time => {
+                        const btn = document.querySelector(`[data-time="${time}"]`);
+                        return btn && !btn.classList.contains('disabled');
+                    });
+                    if (firstAvailable) {
+                        selectTime(firstAvailable);
+                    }
+                }
+                
+                updateAvailableDurations(availableSlots);
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке доступных слотов:', error);
+            });
+    }
+    
+    function updateAvailableDurations(availableSlots = {}) {
+        const selectedTime = document.getElementById('selected_time').value;
+        
+        if (!selectedTime) {
+            return;
+        }
+        
+        // Проверяем каждую продолжительность
+        allDurations.forEach(duration => {
+            const btn = document.querySelector(`[data-duration="${duration}"]`);
+            if (btn) {
+                const isAvailable = availableSlots[duration] && availableSlots[duration].includes(selectedTime);
+                
+                if (!isAvailable) {
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('disabled');
+                }
+            }
+        });
+        
+        // Если текущая выбранная продолжительность недоступна, выбираем первую доступную
+        const selectedDuration = parseInt(document.getElementById('selected_duration').value);
+        const selectedDurationBtn = document.querySelector(`[data-duration="${selectedDuration}"]`);
+        if (selectedDurationBtn && selectedDurationBtn.classList.contains('disabled')) {
+            const firstAvailable = allDurations.find(duration => {
+                const btn = document.querySelector(`[data-duration="${duration}"]`);
+                return btn && !btn.classList.contains('disabled');
+            });
+            if (firstAvailable) {
+                selectDuration(firstAvailable);
+            }
+        }
+    }
+    
+    function toggleDishesSection() {
+        const section = document.getElementById('dishesSection');
+        const button = document.querySelector('.dishes-toggle');
+        section.classList.toggle('active');
+        if (section.classList.contains('active')) {
+            button.textContent = 'Скрыть предзаказ блюд';
+        } else {
+            button.textContent = 'Предзаказать блюда';
+        }
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        updateAvailableSlots();
+        // Обновляем доступность блюд для выбранной даты
+        const selectedDate = document.getElementById('selected_date');
+        if (selectedDate && selectedDate.value) {
+            updateDishAvailability(selectedDate.value);
+        }
+    });
+</script>
+{% endblock %}
+

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Управление столиками{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Управление столиками</h2>
+    <a href="{% url 'operator_table_create' %}" class="btn btn-success">Добавить столик</a>
+</div>
+
+{% if tables %}
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Номер столика</th>
+                    <th>Количество мест</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for table in tables %}
+                <tr>
+                    <td>№{{ table.table_number }}</td>
+                    <td>{{ table.seats }}</td>
+                    <td>
+                        <a href="{% url 'operator_table_detail' table.pk %}" class="btn">Просмотр</a>
+                        <a href="{% url 'operator_table_edit' table.pk %}" class="btn">Редактировать</a>
+                        <a href="{% url 'operator_table_delete' table.pk %}" class="btn btn-danger">Удалить</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% if page_obj.has_other_pages %}
+        <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="btn">« Первая</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn">‹ Предыдущая</a>
+            {% endif %}
+            
+            <span style="padding: 0.5rem 1rem;">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn">Следующая ›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn">Последняя »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="card">
+        <p>Нет столиков. <a href="{% url 'operator_table_create' %}">Добавьте первый столик</a></p>
+    </div>
+{% endif %}
+{% endblock %}
+
+
+
+
+
+

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Меню на {{ selected_date|date:"d.m.Y" }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Меню на {{ selected_date|date:"d.m.Y" }} ({{ day_of_week_name }})</h2>
+    <a href="{% url 'operator_menus' %}" class="btn" style="margin-top: 1rem;">Вернуться к списку меню</a>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Итоговое меню на {{ selected_date|date:"d.m.Y" }}</h3>
+    {% if final_dishes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Блюдо</th>
+                    <th>Цена</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in final_dishes %}
+                <tr>
+                    <td>{{ dish.name }}</td>
+                    <td>{{ dish.price|floatformat:2 }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p style="margin-top: 1rem; font-weight: 600;">
+            Всего блюд: {{ final_dishes|length }}
+        </p>
+    {% else %}
+        <p>На эту дату нет блюд в меню</p>
+    {% endif %}
+</div>
+
+{% if weekly_menu %}
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Еженедельное меню ({{ day_of_week_name }})</h3>
+    {% if weekly_dishes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Блюдо</th>
+                    <th>Цена</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in weekly_dishes %}
+                <tr>
+                    <td>{{ dish.name }}</td>
+                    <td>{{ dish.price|floatformat:2 }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>В еженедельном меню нет блюд</p>
+    {% endif %}
+</div>
+{% else %}
+<div class="card" style="margin-top: 1.5rem;">
+    <p style="color: #999;">Еженедельное меню для {{ day_of_week_name }} не настроено</p>
+</div>
+{% endif %}
+
+{% if active_overrides %}
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Примененные переопределения</h3>
+    {% for override in active_overrides %}
+    <div style="margin-bottom: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 4px;">
+        <strong>Период:</strong> {{ override.date_from|date:"d.m.Y" }}
+        {% if override.date_to %}
+            - {{ override.date_to|date:"d.m.Y" }}
+        {% endif %}
+        <ul style="margin-top: 0.5rem;">
+            {% for item in override.items.all %}
+            <li>
+                {% if item.action == 'add' %}
+                    <span style="color: green;">+ Добавить:</span>
+                {% else %}
+                    <span style="color: red;">- Убрать:</span>
+                {% endif %}
+                {{ item.dish.name }}
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}
+

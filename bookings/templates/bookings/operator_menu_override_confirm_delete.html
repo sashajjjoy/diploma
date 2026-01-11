@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Удаление переопределения меню{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Удаление переопределения меню</h2>
+    <p>Вы уверены, что хотите удалить это переопределение меню?</p>
+    <div style="margin: 1.5rem 0;">
+        <p><strong>Период:</strong> {{ override.date_from|date:"d.m.Y" }}
+        {% if override.date_to %}
+            - {{ override.date_to|date:"d.m.Y" }}
+        {% endif %}
+        </p>
+        <p><strong>Количество изменений:</strong> {{ override.items.count }}</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Да, удалить</button>
+        <a href="{% url 'operator_menu_override_detail' override.pk %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+

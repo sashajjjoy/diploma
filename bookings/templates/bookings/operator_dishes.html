@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Управление блюдами{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Управление блюдами</h2>
+    <a href="{% url 'operator_dish_create' %}" class="btn btn-success">Добавить блюдо</a>
+</div>
+
+{% if dishes %}
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Изображение</th>
+                    <th>Цена</th>
+                    <th>Доступное количество</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in dishes %}
+                <tr>
+                    <td>{{ dish.name }}</td>
+                    <td>
+                        {% if dish.image %}
+                            <img src="{{ dish.image.url }}" alt="{{ dish.name }}" style="max-width: 50px; max-height: 50px;">
+                        {% else %}
+                            <span style="color: #999;">Нет изображения</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ dish.price|floatformat:2 }} ₽</td>
+                    <td>{{ dish.available_quantity }}</td>
+                    <td>
+                        <a href="{% url 'operator_dish_detail' dish.pk %}" class="btn">Просмотр</a>
+                        <a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Редактировать</a>
+                        <a href="{% url 'operator_dish_delete' dish.pk %}" class="btn btn-danger">Удалить</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        {% if page_obj.has_other_pages %}
+        <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+            {% if page_obj.has_previous %}
+                <a href="?page=1" class="btn">« Первая</a>
+                <a href="?page={{ page_obj.previous_page_number }}" class="btn">‹ Предыдущая</a>
+            {% endif %}
+            
+            <span style="padding: 0.5rem 1rem;">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}" class="btn">Следующая ›</a>
+                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn">Последняя »</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="card">
+        <p>Нет блюд. <a href="{% url 'operator_dish_create' %}">Добавьте первое блюдо</a></p>
+    </div>
+{% endif %}
+{% endblock %}
+

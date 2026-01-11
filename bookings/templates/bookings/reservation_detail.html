@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% load tz %}
+
+{% block title %}Бронирование №{{ reservation.pk }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Бронирование №{{ reservation.pk }}</h2>
+    
+    <div style="margin: 1.5rem 0;">
+        {% if reservation.table %}
+            <p><strong>Столик:</strong> №{{ reservation.table.table_number }} ({{ reservation.table.seats }} мест)</p>
+        {% else %}
+            <p><strong>Тип:</strong> Заказ на вынос</p>
+        {% endif %}
+        <p><strong>Дата и время начала:</strong> {{ reservation.start_time|date:"d.m.Y H:i" }}</p>
+        <p><strong>Дата и время окончания:</strong> {{ reservation.end_time|date:"d.m.Y H:i" }}</p>
+        {% if reservation.table %}
+            <p><strong>Количество персон:</strong> {{ reservation.guests_count }}</p>
+        {% endif %}
+        <p><strong>Статус:</strong> 
+            {% now "Y-m-d H:i:s" as now_str %}
+            {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
+                <span class="status-badge status-completed">Завершено</span>
+            {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
+                <span class="status-badge status-active">Активно</span>
+            {% else %}
+                <span class="status-badge status-planned">Запланировано</span>
+            {% endif %}
+        </p>
+        
+        {% if can_modify %}
+            <p style="margin-top: 1rem;">
+                <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
+                <a href="{% url 'reservation_delete' reservation.pk %}" class="btn btn-danger">Отменить бронирование</a>
+            </p>
+        {% else %}
+            <p style="color: #dc3545; margin-top: 1rem;">
+                Изменение или отмена бронирования невозможна. До начала осталось менее 30 минут.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <h3>Предзаказ блюд</h3>
+    
+    {% if dishes %}
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Блюдо</th>
+                    <th>Количество</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in dishes %}
+                <tr>
+                    <td>{{ dish.dish.name }}</td>
+                    <td>{{ dish.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>В предзаказе пока нет блюд.</p>
+    {% endif %}
+</div>
+
+<a href="{% url 'home' %}" class="btn">Вернуться на главную</a>
+{% endblock %}
+

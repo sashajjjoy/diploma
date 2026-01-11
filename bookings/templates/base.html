@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Бронирование столиков{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        .navbar {
+            background: #667eea;
+            color: white;
+            padding: 1.25rem 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+        .navbar .clearfix {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .navbar > div:first-child {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            display: inline-block;
+            line-height: 1.5;
+        }
+        .navbar a:hover {
+            background: rgba(255,255,255,0.15);
+            transform: translateY(-1px);
+        }
+        .navbar-user {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-left: auto;
+            justify-content: flex-end;
+        }
+        .navbar-user span {
+            opacity: 0.9;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+        .messages {
+            margin-bottom: 1.5rem;
+        }
+        .alert {
+            padding: 1rem 1.25rem;
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            border-left: 4px solid;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-color: #28a745;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border-color: #dc3545;
+        }
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
+            line-height: 1.5;
+        }
+        .btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
+        }
+        .btn:active {
+            transform: translateY(0);
+        }
+        .btn-danger {
+            background: #e74c3c;
+            border: 2px solid #e74c3c;
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
+            font-size: 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .btn-danger:hover {
+            background: #c0392b;
+            border-color: #c0392b;
+            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
+        }
+        .btn-success {
+            background: white;
+            color: #27ae60;
+            border: 2px solid transparent;
+            background-image: linear-gradient(white, white), linear-gradient(to right, #ffd700, #27ae60);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
+            font-size: 1rem;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+        .btn-success:hover {
+            background-image: linear-gradient(#f8f9fa, #f8f9fa), linear-gradient(to right, #ffd700, #27ae60);
+            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+        th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        tr:hover {
+            background: #f8f9fa;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.95rem;
+        }
+        .form-control {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        .card {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+        .card h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-weight: 700;
+        }
+        .card h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        .card h3 {
+            font-size: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: #34495e;
+            font-weight: 600;
+        }
+        .info {
+            background: #ecf0f1;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #3498db;
+        }
+        .info p {
+            margin-bottom: 0.5rem;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        ul li {
+            padding: 0.5rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+        ul li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+        }
+        .clearfix::after {
+            content: "";
+            display: table;
+            clear: both;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.35rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .status-completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status-active {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+        .status-planned {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 1rem;
+            }
+            .navbar {
+                padding: 1rem;
+            }
+            .navbar .clearfix {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="clearfix">
+            <div>
+                {% if user.is_authenticated %}
+                    {% load user_tags %}
+                    {% if user|get_user_role == 'operator' %}
+                        <a href="{% url 'operator_cabinet' %}">Главная</a>
+                        <a href="{% url 'operator_reservations' %}">Бронирования</a>
+                        <a href="{% url 'operator_tables' %}">Столики</a>
+                        <a href="{% url 'operator_dishes' %}">Блюда</a>
+                        <a href="{% url 'operator_menus' %}">Меню</a>
+                    {% elif user.is_superuser %}
+                        <a href="{% url 'home' %}">Главная</a>
+                        <a href="/admin/">Админ-панель</a>
+                    {% else %}
+                        <a href="{% url 'home' %}">Главная</a>
+                    {% endif %}
+                {% else %}
+                    <a href="{% url 'home' %}">Главная</a>
+                {% endif %}
+            </div>
+            {% if user.is_authenticated %}
+            <div class="navbar-user">
+                <span>Пользователь: {{ user.username }}</span>
+                <a href="{% url 'logout' %}">Выйти</a>
+            </div>
+            {% else %}
+            <div class="navbar-user">
+                <a href="{% url 'login' %}">Войти</a>
+            </div>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="container">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

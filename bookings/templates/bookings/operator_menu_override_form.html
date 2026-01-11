@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{% if override %}Редактирование переопределения меню{% else %}Переопределение меню на период{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    .dishes-section {
+        margin-top: 1.5rem;
+        padding: 1.5rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        background: #f8f9fa;
+    }
+    .dishes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+        max-height: 400px;
+        overflow-y: auto;
+        padding: 1rem;
+        border: 1px solid #e1e8ed;
+        border-radius: 4px;
+        background: white;
+    }
+    .dish-checkbox {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .dish-checkbox:hover {
+        background: #ecf0f1;
+    }
+    .dish-checkbox input[type="checkbox"] {
+        margin-right: 0.5rem;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    .action-badge {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-left: 0.5rem;
+    }
+    .action-badge.add {
+        background: #d4edda;
+        color: #155724;
+    }
+    .action-badge.remove {
+        background: #f8d7da;
+        color: #721c24;
+    }
+</style>
+
+<div class="card">
+    <h2>{% if override %}Редактирование переопределения меню{% else %}Переопределение меню на период{% endif %}</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">
+        Укажите период и выберите блюда, которые нужно <strong>добавить</strong> или <strong>убрать</strong> из меню на этот период.
+    </p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label for="date_from">Дата начала:</label>
+            <input type="date" name="date_from" id="date_from" class="form-control" 
+                   value="{% if override %}{{ override.date_from|date:'Y-m-d' }}{% endif %}" required>
+        </div>
+        
+        <div class="form-group">
+            <label for="date_to">Дата окончания (необязательно):</label>
+            <input type="date" name="date_to" id="date_to" class="form-control" 
+                   value="{% if override and override.date_to %}{{ override.date_to|date:'Y-m-d' }}{% endif %}">
+        </div>
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_active" {% if override and override.is_active or not override %}checked{% endif %}>
+                Активно
+            </label>
+        </div>
+        
+        <div class="dishes-section">
+            <h3 style="margin-bottom: 1rem; color: #667eea;">Добавить блюда в меню:</h3>
+            <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">
+                Выберите блюда, которые будут добавлены в меню на указанный период (в дополнение к обычному меню дня недели).
+            </p>
+            <div class="dishes-grid">
+                {% for dish in all_dishes %}
+                <div class="dish-checkbox">
+                    <input type="checkbox" 
+                           name="dish_{{ dish.pk }}_add" 
+                           value="on"
+                           id="dish_{{ dish.pk }}_add"
+                           {% if dish.pk in selected_dishes_add %}checked{% endif %}>
+                    <label for="dish_{{ dish.pk }}_add">
+                        {{ dish.name }} 
+                        <span style="color: #667eea; font-weight: 600;">({{ dish.price|floatformat:2 }} ₽)</span>
+                        <span class="action-badge add">+ Добавить</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="dishes-section" style="margin-top: 2rem;">
+            <h3 style="margin-bottom: 1rem; color: #e74c3c;">Убрать блюда из меню:</h3>
+            <p style="color: #666; margin-bottom: 1rem; font-size: 0.9rem;">
+                Выберите блюда, которые будут временно убраны из меню на указанный период (даже если они есть в обычном меню дня недели).
+            </p>
+            <div class="dishes-grid">
+                {% for dish in all_dishes %}
+                <div class="dish-checkbox">
+                    <input type="checkbox" 
+                           name="dish_{{ dish.pk }}_remove" 
+                           value="on"
+                           id="dish_{{ dish.pk }}_remove"
+                           {% if dish.pk in selected_dishes_remove %}checked{% endif %}>
+                    <label for="dish_{{ dish.pk }}_remove">
+                        {{ dish.name }} 
+                        <span style="color: #667eea; font-weight: 600;">({{ dish.price|floatformat:2 }} ₽)</span>
+                        <span class="action-badge remove">− Убрать</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-success">Сохранить</button>
+        <a href="{% if override %}{% url 'operator_menu_override_detail' override.pk %}{% else %}{% url 'operator_menus' %}{% endif %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+

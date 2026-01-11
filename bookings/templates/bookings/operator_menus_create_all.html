@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}Создание меню на неделю{% endblock %}
+
+{% block content %}
+<style>
+    .day-section {
+        margin-bottom: 2rem;
+        padding: 1.5rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        background: white;
+    }
+    .day-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 2px solid #667eea;
+    }
+    .day-header h3 {
+        margin: 0;
+        color: #667eea;
+    }
+    .dishes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 0.75rem;
+        max-height: 300px;
+        overflow-y: auto;
+        padding: 1rem;
+        border: 1px solid #e1e8ed;
+        border-radius: 4px;
+        background: #f8f9fa;
+    }
+    .dish-checkbox {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem;
+        background: white;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .dish-checkbox:hover {
+        background: #ecf0f1;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .dish-checkbox input[type="checkbox"] {
+        margin-right: 0.5rem;
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+    .dish-checkbox label {
+        cursor: pointer;
+        flex: 1;
+        margin: 0;
+    }
+</style>
+
+<div class="card">
+    <h2>Создание меню на рабочие дни</h2>
+    <p style="color: #666; margin-bottom: 1.5rem;">Выберите блюда для каждого рабочего дня (понедельник-пятница). Можно выбрать разные блюда для разных дней.</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        {% for day_data in working_days_data %}
+        <div class="day-section">
+            <div class="day-header">
+                <h3>{{ day_data.day_name }}</h3>
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" name="day_{{ day_data.day }}_active" 
+                           {% if day_data.menu.is_active %}checked{% endif %}
+                           style="margin-right: 0.5rem;">
+                    <span>Активно</span>
+                </label>
+            </div>
+            
+            <div class="dishes-grid">
+                {% for dish in all_dishes %}
+                <div class="dish-checkbox">
+                    <input type="checkbox" 
+                           name="day_{{ day_data.day }}_dishes" 
+                           value="{{ dish.pk }}" 
+                           id="day_{{ day_data.day }}_dish_{{ dish.pk }}"
+                           {% if dish.pk in day_data.items %}checked{% endif %}>
+                    <label for="day_{{ day_data.day }}_dish_{{ dish.pk }}">
+                        {{ dish.name }} <span style="color: #667eea; font-weight: 600;">({{ dish.price|floatformat:2 }} ₽)</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        
+        <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+            <button type="submit" class="btn btn-success" style="font-size: 1.1rem; padding: 0.75rem 2rem;">
+                Сохранить меню на неделю
+            </button>
+            <a href="{% url 'operator_menus' %}" class="btn" style="font-size: 1.1rem; padding: 0.75rem 2rem;">Отмена</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+

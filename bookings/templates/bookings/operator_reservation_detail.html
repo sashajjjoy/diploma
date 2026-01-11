@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Бронирование №{{ reservation.pk }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Бронирование №{{ reservation.pk }}</h2>
+    
+    <div style="margin: 1.5rem 0;">
+        <p><strong>Пользователь:</strong> {{ reservation.user.get_full_name|default:reservation.user.username }} ({{ reservation.user.email }})</p>
+        {% if reservation.table %}
+            <p><strong>Столик:</strong> №{{ reservation.table.table_number }} ({{ reservation.table.seats }} мест)</p>
+        {% else %}
+            <p><strong>Тип:</strong> Заказ на вынос</p>
+        {% endif %}
+        <p><strong>Дата и время начала:</strong> {{ reservation.start_time|date:"d.m.Y H:i" }}</p>
+        <p><strong>Дата и время окончания:</strong> {{ reservation.end_time|date:"d.m.Y H:i" }}</p>
+        <p><strong>Количество персон:</strong> {{ reservation.guests_count }}</p>
+        <p><strong>Статус:</strong> 
+            {% now "Y-m-d H:i:s" as now_str %}
+            {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
+                <span style="color: gray;">Завершено</span>
+            {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
+                <span style="color: green;">Активно</span>
+            {% else %}
+                <span style="color: blue;">Запланировано</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h3>Предзаказ блюд</h3>
+    {% if dishes %}
+        <table style="margin-top: 1rem;">
+            <thead>
+                <tr>
+                    <th>Блюдо</th>
+                    <th>Количество</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in dishes %}
+                <tr>
+                    <td>{{ dish.dish.name }}</td>
+                    <td>{{ dish.quantity }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>В предзаказе нет блюд</p>
+    {% endif %}
+</div>
+
+<div style="margin-top: 1.5rem;">
+    <a href="{% url 'operator_reservations' %}" class="btn">Вернуться к списку</a>
+    <a href="{% url 'operator_reservation_delete' reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить бронирование</a>
+</div>
+{% endblock %}
+
+
+
+
+
+

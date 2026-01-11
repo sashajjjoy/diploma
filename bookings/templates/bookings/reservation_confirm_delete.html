@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Отмена бронирования{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Отмена бронирования</h2>
+    <p>Вы уверены, что хотите отменить бронирование?</p>
+    {% if reservation.table %}
+        <p><strong>Столик:</strong> №{{ reservation.table.table_number }}</p>
+    {% else %}
+        <p><strong>Тип:</strong> Заказ на вынос</p>
+    {% endif %}
+    <p><strong>Дата и время:</strong> {{ reservation.start_time|date:"d.m.Y H:i" }} - {{ reservation.end_time|date:"d.m.Y H:i" }}</p>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Да, отменить</button>
+        <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+
+
+
+
+
+

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Кабинет оператора{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Кабинет оператора столовой</h2>
+    <p>Добро пожаловать в систему управления столовой!</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1.5rem;">
+    <div class="card">
+        <h3>Бронирования</h3>
+        <p>Управление бронированиями столиков</p>
+        <a href="{% url 'operator_reservations' %}" class="btn">Просмотр всех бронирований</a>
+        <p style="margin-top: 1rem; color: #666;">Всего: {{ reservations|length }}</p>
+    </div>
+    
+    <div class="card">
+        <h3>Столики</h3>
+        <p>Управление столиками</p>
+        <a href="{% url 'operator_tables' %}" class="btn">Управление столиками</a>
+        <p style="margin-top: 1rem; color: #666;">Всего: {{ tables|length }}</p>
+    </div>
+    
+    <div class="card">
+        <h3>Блюда</h3>
+        <p>Управление блюдами</p>
+        <a href="{% url 'operator_dishes' %}" class="btn">Управление блюдами</a>
+        <p style="margin-top: 1rem; color: #666;">Всего: {{ dishes|length }}</p>
+    </div>
+    
+    <div class="card">
+        <h3>Меню</h3>
+        <p>Управление меню на дни недели</p>
+        <a href="{% url 'operator_menus' %}" class="btn">Управление меню</a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Последние бронирования</h3>
+    {% if reservations %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Столик</th>
+                    <th>Клиент</th>
+                    <th>Персон</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reservation in reservations %}
+                <tr>
+                    <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>{% if reservation.table %}№{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</td>
+                    <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
+                    <td>{{ reservation.guests_count }}</td>
+                    <td><a href="{% url 'operator_reservation_detail' reservation.pk %}" class="btn">Просмотр</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Нет бронирований</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+
+
+
+
+

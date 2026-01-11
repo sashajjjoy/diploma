@@ -1,0 +1,690 @@
+{% extends "base.html" %}
+
+{% block title %}Главная страница{% endblock %}
+
+{% block extra_css %}
+<style>
+    .date-buttons, .time-buttons, .duration-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+    .date-btn, .date-btn-takeout, .time-btn, .duration-btn {
+        padding: 0.75rem 1.5rem;
+        border: 2px solid #e1e8ed;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 1rem;
+        font-weight: 500;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        color: #2c3e50;
+    }
+    .date-btn:hover, .date-btn-takeout:hover, .time-btn:hover, .duration-btn:hover {
+        border-color: #667eea;
+        background: #ecf0f1;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
+    }
+    .date-btn.active, .date-btn-takeout.active, .time-btn.active, .duration-btn.active {
+        border-color: #667eea;
+        background: #667eea;
+        color: white;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+    .guests-counter {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .counter-btn {
+        width: 44px;
+        height: 44px;
+        border: 2px solid #e1e8ed;
+        background: white;
+        border-radius: 8px;
+        font-size: 1.5rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.3s ease;
+        color: #2c3e50;
+        font-weight: 600;
+    }
+    .counter-btn:hover {
+        border-color: #667eea;
+        background: #ecf0f1;
+        transform: scale(1.1);
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    }
+    .counter-value {
+        min-width: 50px;
+        text-align: center;
+        font-size: 1.2rem;
+        font-weight: 600;
+    }
+    .time-btn.disabled, .duration-btn.disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        pointer-events: none;
+        background: #fee;
+        color: #c33;
+        border-color: #e74c3c;
+        text-decoration: line-through;
+    }
+    .dishes-section {
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 2px solid #e1e8ed;
+        display: none;
+    }
+    .dishes-section.active {
+        display: block;
+    }
+    .dishes-toggle {
+        margin-top: 1rem;
+        background: none;
+        border: none;
+        color: #667eea;
+        cursor: pointer;
+        font-size: 0.95rem;
+        text-decoration: underline;
+        padding: 0;
+    }
+    .dishes-toggle:hover {
+        color: #5568d3;
+    }
+    .dishes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-top: 1rem;
+    }
+    .dish-card {
+        border: 2px solid #e1e8ed;
+        border-radius: 8px;
+        padding: 1rem;
+        background: white;
+        transition: all 0.3s ease;
+    }
+    .dish-card.unavailable {
+        border-color: #e74c3c;
+        background: #fff5f5;
+        opacity: 0.7;
+    }
+    .dish-card.unavailable h4 {
+        color: #e74c3c;
+    }
+    .dish-card.unavailable .dish-price {
+        color: #e74c3c;
+    }
+    .dish-card.unavailable input {
+        cursor: not-allowed;
+        opacity: 0.5;
+    }
+    .dish-card img {
+        width: 100%;
+        height: 150px;
+        object-fit: cover;
+        border-radius: 4px;
+        margin-bottom: 0.75rem;
+    }
+    .dish-card h4 {
+        margin: 0 0 0.5rem 0;
+        font-size: 1.1rem;
+        color: #2c3e50;
+    }
+    .dish-card .dish-price {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #667eea;
+        margin: 0.5rem 0;
+    }
+    .dish-card .dish-description {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        margin: 0.5rem 0;
+        min-height: 40px;
+    }
+    .dish-quantity {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+    }
+    .dish-quantity input {
+        width: 60px;
+        padding: 0.5rem;
+        border: 2px solid #e1e8ed;
+        border-radius: 4px;
+        text-align: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h1>Система бронирования столиков</h1>
+    <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 2rem; font-weight: 400;">Корпоративная столовая</p>
+    
+    {% if not user.is_authenticated %}
+        <div class="info">
+            <h3>Добро пожаловать!</h3>
+            <p>Это система управления бронированием столиков и предзаказом блюд.</p>
+        </div>
+        
+        <h3>Доступные функции:</h3>
+        <ul>
+            <li><strong>Клиенты</strong> - управление клиентами, поиск по ФИО и email</li>
+            <li><strong>Столики</strong> - управление столиками и их вместимостью</li>
+            <li><strong>Блюда</strong> - каталог блюд с изображениями и количеством</li>
+            <li><strong>Бронирования</strong> - создание и управление бронированиями с предзаказом блюд</li>
+        </ul>
+        
+        <div style="margin-top: 30px;">
+            <a href="{% url 'login' %}" class="btn">Войти в систему →</a>
+            <a href="/admin/" class="btn" style="margin-left: 10px;">Админ-панель →</a>
+        </div>
+        
+        <div class="info" style="margin-top: 30px;">
+            <p><strong>Для доступа к системе:</strong></p>
+            <ul>
+                <li>Клиент: client1 / client123</li>
+                <li>Оператор: operator1 / operator123</li>
+                <li>Админ: admin / admin123</li>
+            </ul>
+        </div>
+    {% else %}
+        {% load user_tags %}
+            {% if user|get_user_role == 'client' %}
+            <!-- Форма бронирования для клиента -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 1.5rem;">Бронирование столика</h2>
+                
+                <form method="post" id="reservationForm">
+                    {% csrf_token %}
+                    
+                    <!-- Чекбокс "Взять на вынос" -->
+                    <div class="form-group" style="margin-bottom: 1.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                            <input type="checkbox" name="takeout" id="takeout_checkbox" onchange="toggleTakeout()" style="width: 20px; height: 20px; cursor: pointer;">
+                            <span style="font-size: 1.1rem; font-weight: 500;">Взять на вынос</span>
+                        </label>
+                    </div>
+                    
+                    <!-- Блок для бронирования столика (скрывается при выборе "на вынос") -->
+                    <div id="tableReservationBlock">
+                        <!-- Количество гостей -->
+                        <div class="form-group">
+                            <label>Количество гостей:</label>
+                            <div class="guests-counter">
+                                <button type="button" class="counter-btn" onclick="changeGuests(-1)">-</button>
+                                <span class="counter-value" id="guestsValue">2</span>
+                                <button type="button" class="counter-btn" onclick="changeGuests(1)">+</button>
+                            </div>
+                            <input type="hidden" name="guests_count" id="guests_count" value="2" required>
+                        </div>
+                        
+                        <!-- Дата -->
+                        <div class="form-group">
+                            <label>Дата:</label>
+                            <div class="date-buttons">
+                                {% for date_key, date_label, date_obj in available_dates %}
+                                    <button type="button" class="date-btn {% if forloop.first %}active{% endif %}" 
+                                            data-date="{{ date_key }}" onclick="selectDate('{{ date_key }}')">
+                                        {{ date_label }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="date" id="selected_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}" required>
+                        </div>
+                        
+                        <!-- Время -->
+                        <div class="form-group">
+                            <label>Время:</label>
+                            <div class="time-buttons">
+                                {% for time in time_slots %}
+                                    <button type="button" class="time-btn {% if forloop.first %}active{% endif %}" 
+                                            data-time="{{ time }}" onclick="selectTime('{{ time }}')">
+                                        {{ time }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="time" id="selected_time" value="{% if time_slots %}{{ time_slots.0 }}{% endif %}" required>
+                        </div>
+                        
+                        <!-- Длительность -->
+                        <div class="form-group">
+                            <label>Длительность:</label>
+                            <div class="duration-buttons">
+                                <button type="button" class="duration-btn active" data-duration="25" onclick="selectDuration(25)">
+                                    25 минут
+                                </button>
+                                <button type="button" class="duration-btn" data-duration="55" onclick="selectDuration(55)">
+                                    55 минут
+                                </button>
+                            </div>
+                            <input type="hidden" name="duration" id="selected_duration" value="25" required>
+                        </div>
+                        
+                        <!-- Кнопка для показа секции предзаказа (только для бронирования столика) -->
+                        <button type="button" class="dishes-toggle" id="dishesToggleBtn" onclick="toggleDishesSection()">
+                            Предзаказать блюда
+                        </button>
+                        
+                        <!-- Кнопка "Забронировать" (только для бронирования столика) -->
+                        <button type="submit" class="btn btn-success" id="submitReservationBtn" style="margin-top: 1rem;">
+                            Забронировать
+                        </button>
+                    </div>
+                    
+                    <!-- Блок для заказа на вынос (показывается при выборе "на вынос") -->
+                    <div id="takeoutBlock" style="display: none;">
+                        <!-- Дата для заказа на вынос -->
+                        <div class="form-group">
+                            <label>Дата:</label>
+                            <div class="date-buttons">
+                                {% for date_key, date_label, date_obj in available_dates %}
+                                    <button type="button" class="date-btn-takeout {% if forloop.first %}active{% endif %}" 
+                                            data-date="{{ date_key }}" onclick="selectTakeoutDate('{{ date_key }}')">
+                                        {{ date_label }}
+                                    </button>
+                                {% endfor %}
+                            </div>
+                            <input type="hidden" name="takeout_date" id="selected_takeout_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}">
+                        </div>
+                        
+                        <!-- Кнопка "Предзаказать" (для заказа на вынос) -->
+                        <button type="submit" class="btn btn-success" id="submitTakeoutBtn" style="margin-top: 1rem;">
+                            Предзаказать
+                        </button>
+                    </div>
+                    
+                    <!-- Секция предзаказа блюд -->
+                    <div id="dishesSection" class="dishes-section">
+                        <h3 style="margin-bottom: 1rem;">Предзаказ блюд</h3>
+                        {% if all_dishes %}
+                        <div class="dishes-grid">
+                            {% for dish in all_dishes %}
+                            <div class="dish-card" data-dish-id="{{ dish.pk }}">
+                                {% if dish.image %}
+                                    <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
+                                {% else %}
+                                    <div style="width: 100%; height: 150px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; margin-bottom: 0.75rem;">
+                                        Нет изображения
+                                    </div>
+                                {% endif %}
+                                <h4>{{ dish.name }}</h4>
+                                <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
+                                <div class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:15 }}</div>
+                                <div class="dish-quantity">
+                                    <label for="dish_quantity_{{ dish.pk }}" style="font-size: 0.9rem;">Количество:</label>
+                                    <input type="number" 
+                                           name="dish_quantity_{{ dish.pk }}" 
+                                           id="dish_quantity_{{ dish.pk }}" 
+                                           value="0" 
+                                           min="0" 
+                                           max="{{ dish.available_quantity }}">
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p>Нет доступных блюд для предзаказа.</p>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Бронирования клиента -->
+            {% if reservations %}
+            <div class="card">
+                <h3>Мои бронирования</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>Дата и время начала</th>
+                            <th>Дата и время окончания</th>
+                            <th>Персон</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for reservation in reservations %}
+                        <tr>
+                            <td>
+                                {% if reservation.table %}
+                                    Столик №{{ reservation.table.table_number }}
+                                {% else %}
+                                    Заказ на вынос
+                                {% endif %}
+                            </td>
+                            <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                            <td>{{ reservation.end_time|date:"d.m.Y H:i" }}</td>
+                            <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}-{% endif %}</td>
+                            <td>
+                                {% now "Y-m-d H:i:s" as now_str %}
+                                {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
+                                    <span class="status-badge status-completed">Завершено</span>
+                                {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
+                                    <span class="status-badge status-active">Активно</span>
+                                {% else %}
+                                    <span class="status-badge status-planned">Запланировано</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Подробнее</a>
+                                {% if reservation.can_modify_or_cancel %}
+                                    <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                
+                {% if page_obj and page_obj.has_other_pages %}
+                <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1" class="btn">« Первая</a>
+                        <a href="?page={{ page_obj.previous_page_number }}" class="btn">‹ Предыдущая</a>
+                    {% endif %}
+                    
+                    <span style="padding: 0.5rem 1rem;">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" class="btn">Следующая ›</a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}" class="btn">Последняя »</a>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <div class="card">
+                <p>У вас пока нет бронирований. Создайте первое бронирование с помощью формы выше.</p>
+            </div>
+            {% endif %}
+            
+        {% elif user|get_user_role == 'operator' %}
+            <div class="info">
+                <h3>Добро пожаловать, оператор!</h3>
+                <p>Вы можете управлять столиками, блюдами и просматривать бронирования.</p>
+            </div>
+            <div style="margin-top: 30px;">
+                <a href="{% url 'operator_cabinet' %}" class="btn">Перейти в кабинет оператора →</a>
+            </div>
+        {% elif user.is_superuser %}
+            <div class="info">
+                <h3>Добро пожаловать, администратор!</h3>
+                <p>У вас есть полный доступ к системе управления.</p>
+            </div>
+            <div style="margin-top: 30px;">
+                <a href="/admin/" class="btn">Перейти в админ-панель →</a>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let guestsCount = 2;
+    let availableSlots = {};
+    
+    // Все возможные временные слоты
+    const allTimeSlots = [
+        {% for time in time_slots %}'{{ time }}'{% if not forloop.last %}, {% endif %}{% endfor %}
+    ];
+    
+    // Все возможные продолжительности
+    const allDurations = [25, 55];
+    
+    // Блюда в меню для каждой даты
+    const dishesByDate = {{ dishes_by_date|safe }};
+    
+    function changeGuests(delta) {
+        guestsCount += delta;
+        if (guestsCount < 1) guestsCount = 1;
+        if (guestsCount > 20) guestsCount = 20;
+        document.getElementById('guestsValue').textContent = guestsCount;
+        document.getElementById('guests_count').value = guestsCount;
+        updateAvailableSlots();
+    }
+    
+    function selectDate(dateKey) {
+        document.querySelectorAll('.date-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelector(`[data-date="${dateKey}"]`).classList.add('active');
+        document.getElementById('selected_date').value = dateKey;
+        updateAvailableSlots();
+        updateDishAvailability(dateKey);
+    }
+    
+    function selectTime(time) {
+        document.querySelectorAll('.time-btn').forEach(btn => btn.classList.remove('active'));
+        const btn = document.querySelector(`[data-time="${time}"]`);
+        if (btn && !btn.classList.contains('disabled')) {
+            btn.classList.add('active');
+            document.getElementById('selected_time').value = time;
+            updateAvailableDurations();
+        }
+    }
+    
+    function selectDuration(duration) {
+        document.querySelectorAll('.duration-btn').forEach(btn => btn.classList.remove('active'));
+        const btn = document.querySelector(`[data-duration="${duration}"]`);
+        if (btn && !btn.classList.contains('disabled')) {
+            btn.classList.add('active');
+            document.getElementById('selected_duration').value = duration;
+        }
+    }
+    
+    // Обновляет доступные временные слоты на основе занятости
+    function updateAvailableSlots() {
+        const date = document.getElementById('selected_date').value;
+        const guests = document.getElementById('guests_count').value;
+        
+        if (!date || !guests) {
+            return;
+        }
+        
+        // Загружаем доступные слоты
+        fetch(`/dashboard/api/available-slots/?date=${date}&guests_count=${guests}`)
+            .then(response => response.json())
+            .then(data => {
+                availableSlots = data.available_slots || {};
+                
+                // Обновляем видимость временных кнопок
+                allTimeSlots.forEach(time => {
+                    const btn = document.querySelector(`[data-time="${time}"]`);
+                    if (btn) {
+                        // Проверяем, доступен ли этот временной слот хотя бы для одной продолжительности
+                        let isAvailable = allDurations.some(duration => {
+                            return availableSlots[duration] && availableSlots[duration].includes(time);
+                        });
+                        
+                        if (!isAvailable) {
+                            btn.classList.add('disabled');
+                        } else {
+                            btn.classList.remove('disabled');
+                        }
+                    }
+                });
+                
+                // Если текущее выбранное время недоступно, выбираем первое доступное
+                const selectedTime = document.getElementById('selected_time').value;
+                const selectedTimeBtn = document.querySelector(`[data-time="${selectedTime}"]`);
+                if (selectedTimeBtn && selectedTimeBtn.classList.contains('disabled')) {
+                    const firstAvailable = allTimeSlots.find(time => {
+                        const btn = document.querySelector(`[data-time="${time}"]`);
+                        return btn && !btn.classList.contains('disabled');
+                    });
+                    if (firstAvailable) {
+                        selectTime(firstAvailable);
+                    }
+                }
+                
+                updateAvailableDurations();
+            })
+            .catch(error => {
+                console.error('Ошибка при загрузке доступных слотов:', error);
+            });
+    }
+    
+    // Обновляет доступные продолжительности на основе выбранного времени
+    function updateAvailableDurations() {
+        const selectedTime = document.getElementById('selected_time').value;
+        
+        if (!selectedTime) {
+            return;
+        }
+        
+        // Проверяем каждую продолжительность
+        allDurations.forEach(duration => {
+            const btn = document.querySelector(`[data-duration="${duration}"]`);
+            if (btn) {
+                const isAvailable = availableSlots[duration] && availableSlots[duration].includes(selectedTime);
+                
+                if (!isAvailable) {
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('disabled');
+                }
+            }
+        });
+        
+        // Если текущая выбранная продолжительность недоступна, выбираем первую доступную
+        const selectedDuration = parseInt(document.getElementById('selected_duration').value);
+        const selectedDurationBtn = document.querySelector(`[data-duration="${selectedDuration}"]`);
+        if (selectedDurationBtn && selectedDurationBtn.classList.contains('disabled')) {
+            const firstAvailable = allDurations.find(duration => {
+                const btn = document.querySelector(`[data-duration="${duration}"]`);
+                return btn && !btn.classList.contains('disabled');
+            });
+            if (firstAvailable) {
+                selectDuration(firstAvailable);
+            }
+        }
+    }
+    
+    function toggleDishesSection() {
+        const section = document.getElementById('dishesSection');
+        const button = document.querySelector('.dishes-toggle');
+        if (section && button) {
+            section.classList.toggle('active');
+            if (section.classList.contains('active')) {
+                button.textContent = 'Скрыть предзаказ блюд';
+            } else {
+                button.textContent = 'Предзаказать блюда';
+            }
+        }
+    }
+    
+    function selectTakeoutDate(dateKey) {
+        // Убираем активный класс со всех кнопок
+        document.querySelectorAll('.date-btn-takeout').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        // Добавляем активный класс выбранной кнопке
+        const selectedBtn = document.querySelector(`.date-btn-takeout[data-date="${dateKey}"]`);
+        if (selectedBtn) {
+            selectedBtn.classList.add('active');
+            document.getElementById('selected_takeout_date').value = dateKey;
+        }
+        updateDishAvailability(dateKey);
+    }
+    
+    function updateDishAvailability(dateKey) {
+        const availableDishIds = dishesByDate[dateKey] || [];
+        
+        // Обновляем все карточки блюд
+        document.querySelectorAll('.dish-card').forEach(card => {
+            const dishId = parseInt(card.getAttribute('data-dish-id'));
+            const input = card.querySelector('input[type="number"]');
+            
+            if (availableDishIds.includes(dishId)) {
+                // Блюдо доступно
+                card.classList.remove('unavailable');
+                if (input) {
+                    input.disabled = false;
+                    input.value = Math.max(0, parseInt(input.value) || 0);
+                }
+            } else {
+                // Блюдо недоступно
+                card.classList.add('unavailable');
+                if (input) {
+                    input.disabled = true;
+                    input.value = 0;
+                }
+            }
+        });
+    }
+    
+    function toggleTakeout() {
+        const checkbox = document.getElementById('takeout_checkbox');
+        const tableBlock = document.getElementById('tableReservationBlock');
+        const takeoutBlock = document.getElementById('takeoutBlock');
+        const dishesToggleBtn = document.getElementById('dishesToggleBtn');
+        const dishesSection = document.getElementById('dishesSection');
+        const submitReservationBtn = document.getElementById('submitReservationBtn');
+        const submitTakeoutBtn = document.getElementById('submitTakeoutBtn');
+        
+        if (checkbox.checked) {
+            // Заказ на вынос выбран
+            // Скрываем блок бронирования столика
+            if (tableBlock) tableBlock.style.display = 'none';
+            // Показываем блок для заказа на вынос
+            if (takeoutBlock) takeoutBlock.style.display = 'block';
+            // Скрываем кнопку предзаказа (она не нужна для takeout)
+            if (dishesToggleBtn) dishesToggleBtn.style.display = 'none';
+            // Показываем секцию блюд (всегда видна для takeout)
+            if (dishesSection) {
+                dishesSection.classList.add('active');
+                dishesSection.style.display = 'block';
+            }
+            // Скрываем кнопку "Забронировать"
+            if (submitReservationBtn) submitReservationBtn.style.display = 'none';
+            // Показываем кнопку "Предзаказать"
+            if (submitTakeoutBtn) submitTakeoutBtn.style.display = 'block';
+        } else {
+            // Бронирование столика
+            // Показываем блок бронирования столика
+            if (tableBlock) tableBlock.style.display = 'block';
+            // Скрываем блок для заказа на вынос
+            if (takeoutBlock) takeoutBlock.style.display = 'none';
+            // Показываем кнопку предзаказа
+            if (dishesToggleBtn) dishesToggleBtn.style.display = 'block';
+            // Секция блюд изначально скрыта
+            if (dishesSection) {
+                dishesSection.classList.remove('active');
+                dishesSection.style.display = 'none';
+            }
+            // Показываем кнопку "Забронировать"
+            if (submitReservationBtn) submitReservationBtn.style.display = 'block';
+            // Скрываем кнопку "Предзаказать"
+            if (submitTakeoutBtn) submitTakeoutBtn.style.display = 'none';
+        }
+    }
+    
+    // Инициализация при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        updateAvailableSlots();
+        // Обновляем доступность блюд для выбранной даты (для бронирования столика)
+        const selectedDate = document.getElementById('selected_date');
+        if (selectedDate && selectedDate.value) {
+            updateDishAvailability(selectedDate.value);
+        }
+        // Обновляем доступность блюд для выбранной даты (для заказа на вынос)
+        const selectedTakeoutDate = document.getElementById('selected_takeout_date');
+        if (selectedTakeoutDate && selectedTakeoutDate.value) {
+            updateDishAvailability(selectedTakeoutDate.value);
+        }
+    });
+</script>
+{% endblock %}

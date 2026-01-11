@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Переопределение меню{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Переопределение меню</h2>
+    
+    <div style="margin: 1.5rem 0;">
+        <p><strong>Дата начала:</strong> {{ override.date_from|date:"d.m.Y" }}</p>
+        {% if override.date_to %}
+            <p><strong>Дата окончания:</strong> {{ override.date_to|date:"d.m.Y" }}</p>
+        {% else %}
+            <p><strong>Дата окончания:</strong> Не указана (одна дата)</p>
+        {% endif %}
+        <p><strong>Статус:</strong> 
+            {% if override.is_active %}
+                <span style="color: green;">Активно</span>
+            {% else %}
+                <span style="color: gray;">Неактивно</span>
+            {% endif %}
+        </p>
+    </div>
+    
+    <div style="margin-top: 1.5rem;">
+        <a href="{% url 'operator_menu_override_edit' override.pk %}" class="btn">Редактировать</a>
+        <a href="{% url 'operator_menu_override_delete' override.pk %}" class="btn btn-danger">Удалить</a>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Изменения в меню</h3>
+    {% if items %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Действие</th>
+                    <th>Блюдо</th>
+                    <th>Цена</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>
+                        {% if item.action == 'add' %}
+                            <span style="color: green;">Добавить</span>
+                        {% else %}
+                            <span style="color: red;">Убрать</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.dish.name }}</td>
+                    <td>{{ item.dish.price|floatformat:2 }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Нет изменений в меню</p>
+    {% endif %}
+</div>
+
+<a href="{% url 'operator_menus' %}" class="btn" style="margin-top: 1.5rem;">Вернуться к списку</a>
+{% endblock %}
+

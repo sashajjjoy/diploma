@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Столик №{{ table.table_number }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Столик №{{ table.table_number }}</h2>
+    
+    <div style="margin: 1.5rem 0;">
+        <p><strong>Номер столика:</strong> {{ table.table_number }}</p>
+        <p><strong>Количество мест:</strong> {{ table.seats }}</p>
+    </div>
+    
+    <p>
+        <a href="{% url 'operator_table_edit' table.pk %}" class="btn">Редактировать</a>
+        <a href="{% url 'operator_table_delete' table.pk %}" class="btn btn-danger">Удалить</a>
+    </p>
+</div>
+
+<div class="card">
+    <h3>Последние бронирования</h3>
+    {% if reservations %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата и время</th>
+                    <th>Пользователь</th>
+                    <th>Персон</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reservation in reservations %}
+                <tr>
+                    <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
+                    <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}-{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>Нет бронирований для этого столика</p>
+    {% endif %}
+</div>
+
+<a href="{% url 'operator_tables' %}" class="btn">Вернуться к списку</a>
+{% endblock %}
+
+
+
+
+
+

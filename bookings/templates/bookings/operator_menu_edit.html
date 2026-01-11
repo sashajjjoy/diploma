@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование меню - {{ menu.get_day_of_week_display }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Редактирование меню на {{ menu.get_day_of_week_display }}</h2>
+    
+    <form method="post">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>
+                <input type="checkbox" name="is_active" {% if menu.is_active %}checked{% endif %}>
+                Активно
+            </label>
+        </div>
+        
+        <div class="form-group">
+            <label>Выберите блюда:</label>
+            <div style="max-height: 400px; overflow-y: auto; border: 1px solid #e1e8ed; border-radius: 4px; padding: 1rem;">
+                {% for dish in all_dishes %}
+                <div style="margin-bottom: 0.5rem;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" name="dishes" value="{{ dish.pk }}" 
+                               {% if dish.pk in selected_dish_ids %}checked{% endif %}
+                               style="margin-right: 0.5rem;">
+                        <span>{{ dish.name }} ({{ dish.price|floatformat:2 }} ₽)</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-success">Сохранить</button>
+        <a href="{% url 'operator_menus' %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+

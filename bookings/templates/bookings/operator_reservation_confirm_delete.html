@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Удаление бронирования - Оператор{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Удаление бронирования</h2>
+    <p>Вы уверены, что хотите удалить это бронирование?</p>
+    <div style="margin: 1.5rem 0;">
+        <p><strong>Пользователь:</strong> {{ reservation.user.get_full_name|default:reservation.user.username }}</p>
+        {% if reservation.table %}
+            <p><strong>Столик:</strong> №{{ reservation.table.table_number }}</p>
+        {% else %}
+            <p><strong>Тип:</strong> Заказ на вынос</p>
+        {% endif %}
+        <p><strong>Дата и время:</strong> {{ reservation.start_time|date:"d.m.Y H:i" }} - {{ reservation.end_time|date:"d.m.Y H:i" }}</p>
+    </div>
+    
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger">Да, удалить</button>
+        <a href="{% url 'operator_reservation_detail' reservation.pk %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
+
