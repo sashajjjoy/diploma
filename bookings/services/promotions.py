@@ -7,17 +7,17 @@ from django.utils import timezone
 from bookings.models import Dish, Promotion, ReservationDish
 
 
-def available_quantity_net(dish):
+def available_quantity_net(dish, exclude_reservation=None):
     """Сколько порций блюда можно ещё заказать (учёт активных бронирований с предзаказом)."""
     if not dish or dish.available_quantity <= 0:
         return 0
-    reserved = (
-        ReservationDish.objects.filter(
-            dish=dish,
-            reservation__end_time__gte=timezone.now(),
-        ).aggregate(total=Sum("quantity"))["total"]
-        or 0
+    qs = ReservationDish.objects.filter(
+        dish=dish,
+        reservation__end_time__gte=timezone.now(),
     )
+    if exclude_reservation is not None:
+        qs = qs.exclude(reservation=exclude_reservation)
+    reserved = qs.aggregate(total=Sum("quantity"))["total"] or 0
     return max(0, dish.available_quantity - reserved)
 
 
@@ -171,7 +171,7 @@ def validate_promotion_application(promotion, dish_qty_map):
     return False, 'Неизвестный тип акции.'
 
 
-def validate_merged_cart_stock(dish_qty_map):
+def validate_merged_cart_stock(dish_qty_map, exclude_reservation=None):
     """
     Проверка остатков для итогового набора порций (включая автоматически добавленные акциями).
     Возвращает текст ошибки или None.
@@ -188,7 +188,7 @@ def validate_merged_cart_stock(dish_qty_map):
         d = dishes.get(did)
         if not d:
             return 'В заказе указано неизвестное блюдо.'
-        net = available_quantity_net(d)
+        net = available_quantity_net(d, exclude_reservation=exclude_reservation)
         if q > net:
             return (
                 f'«{d.name}»: недостаточно на складе (запрошено {q}, доступно {net}). '
@@ -273,16 +273,11 @@ def compute_per_promotion_discounts(promotions, dish_qty_map, dishes_by_id):
     return results, total.quantize(Decimal('0.01'))
 
 
-def resolve_promotions_for_checkout(post, regular_qty_map, menu_dish_ids=None):
-    """
-    Читает выбранные акции из POST, объединяет корзину, проверяет условия и считает скидки.
-    menu_dish_ids — множество id блюд в меню на дату бронирования/выноса; если задано,
-    комбо и акции «на блюдо» проверяются на вхождение в меню.
-
-    Возвращает (promotions, [(promo, discount)], total_discount, error_message, merged_qty_map).
-    """
-    ids = parse_promotion_ids_from_post(post)
+def resolve_promotions_for_checkout_input(
+    promotion_ids, regular_qty_map, menu_dish_ids=None, exclude_reservation=None
+):
     regular_qty_map = dict(regular_qty_map)
+    ids = sorted({int(promotion_id) for promotion_id in (promotion_ids or [])})
     if not ids:
         return [], [], Decimal('0'), None, regular_qty_map
     promos = list(
@@ -318,12 +313,23 @@ def resolve_promotions_for_checkout(post, regular_qty_map, menu_dish_ids=None):
         ok, err = validate_promotion_application(p, merged)
         if not ok:
             return [], [], None, err, merged
-    stock_err = validate_merged_cart_stock(merged)
+    stock_err = validate_merged_cart_stock(merged, exclude_reservation=exclude_reservation)
     if stock_err:
         return [], [], None, stock_err, regular_qty_map
     dishes_by_id = {d.pk: d for d in Dish.objects.filter(pk__in=list(merged.keys()))}
     per_promo, total = compute_per_promotion_discounts(promos, merged, dishes_by_id)
     return promos, per_promo, total, None, merged
+
+
+def resolve_promotions_for_checkout(post, regular_qty_map, menu_dish_ids=None):
+    """
+    Backward-compatible wrapper for HTML form POST payloads.
+    """
+    return resolve_promotions_for_checkout_input(
+        parse_promotion_ids_from_post(post),
+        regular_qty_map,
+        menu_dish_ids=menu_dish_ids,
+    )
 
 
 def order_subtotal(dish_qty_map, dishes_by_id):
