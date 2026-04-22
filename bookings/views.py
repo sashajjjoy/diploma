@@ -5,14 +5,67 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q
+from django.db.models import Q, Count
 from django.core.paginator import Paginator
 from datetime import timedelta, datetime
 import pytz
-from .models import Table, Dish, Reservation, ReservationDish, UserProfile, WeeklyMenu, WeeklyMenuItem, MenuOverride, MenuOverrideItem
+from decimal import Decimal
+
+from .models import (
+    Table,
+    Dish,
+    Reservation,
+    ReservationDish,
+    UserProfile,
+    WeeklyMenuDaySettings,
+    WeeklyMenuItem,
+    MenuOverride,
+    MenuOverrideItem,
+    News,
+    VenueComplaint,
+    DishReview,
+    Promotion,
+    PromotionComboItem,
+    ReservationAppliedPromotion,
+)
 from .forms import ReservationForm
+from .services.promotions import (
+    get_orderable_promotions,
+    parse_dish_quantities_from_post,
+    order_subtotal,
+    compute_order_totals,
+    resolve_promotions_for_checkout,
+    unit_price_after_single_promo,
+)
 
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
+
+
+def client_home_promotion_context():
+    promos = list(get_orderable_promotions())
+    combo_promotions = [p for p in promos if p.kind == Promotion.KIND_COMBO]
+    single_promos_by_dish = {}
+    for p in promos:
+        if p.kind != Promotion.KIND_SINGLE or not p.target_dish_id:
+            continue
+        d = p.target_dish
+        if not d:
+            continue
+        single_promos_by_dish.setdefault(d.pk, []).append(
+            {
+                'promo': p,
+                'price_new': unit_price_after_single_promo(d, p),
+            }
+        )
+    return {
+        'active_promotions': promos,
+        'combo_promotions': combo_promotions,
+        'single_promos_by_dish': single_promos_by_dish,
+    }
+
+
+def is_order_completed_for_review(reservation):
+    return reservation.end_time < timezone.now()
 
 
 def get_menu_dishes_for_date(target_date):
@@ -31,10 +84,12 @@ def get_menu_dishes_for_date(target_date):
     # Получаем еженедельное меню для этого дня недели
     weekly_dishes = []
     try:
-        weekly_menu = WeeklyMenu.objects.get(day_of_week=day_of_week, is_active=True)
-        weekly_menu_items = WeeklyMenuItem.objects.filter(menu=weekly_menu).order_by('order', 'dish__name')
+        day_settings = WeeklyMenuDaySettings.objects.get(day_of_week=day_of_week, is_active=True)
+        weekly_menu_items = WeeklyMenuItem.objects.filter(day_settings=day_settings).order_by(
+            'order', 'dish__name'
+        )
         weekly_dishes = [item.dish for item in weekly_menu_items]
-    except WeeklyMenu.DoesNotExist:
+    except WeeklyMenuDaySettings.DoesNotExist:
         pass
     
     # Получаем активные переопределения для этой даты
@@ -117,16 +172,43 @@ def is_operator(user):
     except UserProfile.DoesNotExist:
         return False
 
+
+def is_operator_or_admin(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        profile = user.profile
+        return profile.role == 'operator' or profile.is_admin()
+    except UserProfile.DoesNotExist:
+        return False
+
+
+def is_admin_app(user):
+    """Доступ к кабинету администратора в приложении."""
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        return user.profile.is_admin()
+    except UserProfile.DoesNotExist:
+        return False
+
+
 @login_required
 def dashboard(request):
+    if request.user.is_superuser:
+        return redirect('admin_cabinet')
     try:
         profile = request.user.profile
         if profile.is_client():
             return redirect('home')
         elif profile.is_operator():
             return redirect('operator_cabinet')
-        elif profile.is_admin() or request.user.is_superuser:
-            return redirect('/admin/')
+        elif profile.is_admin():
+            return redirect('admin_cabinet')
     except (UserProfile.DoesNotExist, AttributeError):
         # Если профиля нет, создаем его автоматически с ролью клиента
         UserProfile.objects.get_or_create(
@@ -190,65 +272,86 @@ def reservation_create(request):
                 # Создаем бронирование на целый день (00:00 - 23:59)
                 start_datetime = MOSCOW_TZ.localize(datetime.combine(start_date, datetime.min.time().replace(hour=0, minute=0)))
                 end_datetime = MOSCOW_TZ.localize(datetime.combine(start_date, datetime.min.time().replace(hour=23, minute=59)))
-                
-                # Создаем Reservation без столика
+
+                menu_ids = get_menu_dishes_for_date(start_date)
+                regular_map = parse_dish_quantities_from_post(request.POST)
+                promos, per_promo, disc_amt, promo_err, dish_qty_map = resolve_promotions_for_checkout(
+                    request.POST, regular_map, menu_ids
+                )
+                if promo_err:
+                    messages.error(request, promo_err)
+                    return redirect('home')
+                has_dishes = sum(dish_qty_map.values()) > 0
+                if not has_dishes:
+                    messages.error(
+                        request,
+                        'Для заказа на вынос выберите блюда в меню и/или отметьте акцию (комбо или скидка на блюдо).',
+                    )
+                    return redirect('home')
+
+                dishes_by_id_pre = {
+                    d.pk: d for d in Dish.objects.filter(pk__in=list(dish_qty_map.keys()))
+                }
+                subtotal_amt, order_total_amt = compute_order_totals(
+                    dish_qty_map, dishes_by_id_pre, disc_amt
+                )
+
                 reservation = Reservation(
                     user=request.user,
                     table=None,
-                    guests_count=1,  # Для заказа на вынос не важно
+                    guests_count=1,
                     start_time=start_datetime,
-                    end_time=end_datetime
+                    end_time=end_datetime,
+                    applied_promotion=promos[0] if promos else None,
+                    promotion_discount_total=disc_amt,
+                    order_subtotal=subtotal_amt,
+                    order_total=order_total_amt,
                 )
                 reservation.full_clean()
                 reservation.save()
-                
-                # Обрабатываем блюда из формы
+                for p, amt in per_promo:
+                    ReservationAppliedPromotion.objects.create(
+                        reservation=reservation, promotion=p, discount_amount=amt
+                    )
+
                 from django.db.models import Sum
                 dish_errors = []
-                has_dishes = False
-                
-                for key, value in request.POST.items():
-                    if key.startswith('dish_quantity_'):
-                        dish_id = int(key.replace('dish_quantity_', ''))
-                        quantity = int(value) if value else 0
-                        
-                        if quantity > 0:
-                            has_dishes = True
-                            try:
-                                dish = Dish.objects.get(pk=dish_id)
-                                
-                                # Проверка доступности (учитываем все резервации, включая заказы на вынос)
-                                reserved_result = ReservationDish.objects.filter(
-                                    dish=dish,
-                                    reservation__end_time__gte=timezone.now()
-                                ).aggregate(total=Sum('quantity'))
-                                reserved = reserved_result['total'] or 0
-                                available = dish.available_quantity - reserved
-                                
-                                if quantity > available:
-                                    dish_errors.append(f'Блюдо "{dish.name}": недостаточно. Доступно: {available}')
-                                else:
-                                    ReservationDish.objects.create(
-                                        reservation=reservation,
-                                        dish=dish,
-                                        quantity=quantity
-                                    )
-                            except (Dish.DoesNotExist, ValueError, ValidationError) as e:
-                                dish_errors.append(f'Ошибка при добавлении блюда: {str(e)}')
-                
-                # Проверяем, что выбрано хотя бы одно блюдо
-                if not has_dishes:
-                    reservation.delete()  # Удаляем бронирование
-                    messages.error(request, 'Для заказа на вынос необходимо выбрать хотя бы одно блюдо.')
-                    return redirect('home')
-                
+                for dish_id, quantity in dish_qty_map.items():
+                    try:
+                        dish = Dish.objects.get(pk=dish_id)
+                        reserved_result = ReservationDish.objects.filter(
+                            dish=dish,
+                            reservation__end_time__gte=timezone.now()
+                        ).aggregate(total=Sum('quantity'))
+                        reserved = reserved_result['total'] or 0
+                        available = dish.available_quantity - reserved
+                        if quantity > available:
+                            dish_errors.append(f'Блюдо "{dish.name}": недостаточно. Доступно: {available}')
+                        else:
+                            ReservationDish.objects.create(
+                                reservation=reservation,
+                                dish=dish,
+                                quantity=quantity
+                            )
+                    except (Dish.DoesNotExist, ValueError, ValidationError) as e:
+                        dish_errors.append(f'Ошибка при добавлении блюда: {str(e)}')
+
                 if dish_errors:
-                    reservation.delete()  # Удаляем бронирование, если были ошибки
+                    reservation.delete()
                     messages.error(request, 'Ошибки при создании заказа: ' + '; '.join(dish_errors))
                     return redirect('home')
-                else:
-                    messages.success(request, f'Заказ на вынос на {start_date.strftime("%d.%m.%Y")} успешно создан!')
-                    return redirect('home')
+
+                extra = f' Итого к оплате: {order_total_amt} ₽.'
+                if promos and disc_amt and disc_amt > 0:
+                    extra = (
+                        f' Итого к оплате: {order_total_amt} ₽ '
+                        f'(позиции: {subtotal_amt} ₽, скидка по акциям: {disc_amt} ₽).'
+                    )
+                messages.success(
+                    request,
+                    f'Заказ на вынос на {start_date.strftime("%d.%m.%Y")} успешно создан!{extra}',
+                )
+                return redirect('home')
             except Exception as e:
                 messages.error(request, f'Ошибка при создании заказа: {str(e)}')
                 return redirect('home')
@@ -295,52 +398,74 @@ def reservation_create(request):
                 messages.error(request, 'К сожалению, на выбранное время нет свободных столиков подходящего размера. Пожалуйста, выберите другое время.')
                 return redirect('home')
 
+            menu_ids = get_menu_dishes_for_date(start_date)
+            regular_map = parse_dish_quantities_from_post(request.POST)
+            promos, per_promo, disc_amt, promo_err, dish_qty_map = resolve_promotions_for_checkout(
+                request.POST, regular_map, menu_ids
+            )
+            if promo_err:
+                messages.error(request, promo_err)
+                return redirect('home')
+
+            dishes_by_id_pre = {
+                d.pk: d for d in Dish.objects.filter(pk__in=list(dish_qty_map.keys()))
+            }
+            subtotal_amt, order_total_amt = compute_order_totals(
+                dish_qty_map, dishes_by_id_pre, disc_amt
+            )
+
             reservation = Reservation(
                 user=request.user,
                 table=table,
                 guests_count=guests_count_int,
                 start_time=start_datetime,
-                end_time=end_datetime
+                end_time=end_datetime,
+                applied_promotion=promos[0] if promos else None,
+                promotion_discount_total=disc_amt,
+                order_subtotal=subtotal_amt,
+                order_total=order_total_amt,
             )
-            
+
             reservation.full_clean()
             reservation.save()
-            
-            # Обрабатываем предзаказ блюд
+            for p, amt in per_promo:
+                ReservationAppliedPromotion.objects.create(
+                    reservation=reservation, promotion=p, discount_amount=amt
+                )
+
             from django.db.models import Sum
             dish_errors = []
-            for key, value in request.POST.items():
-                if key.startswith('dish_quantity_'):
-                    dish_id = int(key.replace('dish_quantity_', ''))
-                    quantity = int(value) if value else 0
-                    
-                    if quantity > 0:
-                        try:
-                            dish = Dish.objects.get(pk=dish_id)
-                            
-                            # Проверка доступности
-                            reserved_result = ReservationDish.objects.filter(
-                                dish=dish,
-                                reservation__end_time__gte=timezone.now()
-                            ).aggregate(total=Sum('quantity'))
-                            reserved = reserved_result['total'] or 0
-                            available = dish.available_quantity - reserved
-                            
-                            if quantity > available:
-                                dish_errors.append(f'Блюдо "{dish.name}": недостаточно. Доступно: {available}')
-                            else:
-                                ReservationDish.objects.create(
-                                    reservation=reservation,
-                                    dish=dish,
-                                    quantity=quantity
-                                )
-                        except (Dish.DoesNotExist, ValueError, ValidationError) as e:
-                            dish_errors.append(f'Ошибка при добавлении блюда: {str(e)}')
-            
+            for dish_id, quantity in dish_qty_map.items():
+                if quantity <= 0:
+                    continue
+                try:
+                    dish = Dish.objects.get(pk=dish_id)
+                    reserved_result = ReservationDish.objects.filter(
+                        dish=dish,
+                        reservation__end_time__gte=timezone.now()
+                    ).aggregate(total=Sum('quantity'))
+                    reserved = reserved_result['total'] or 0
+                    available = dish.available_quantity - reserved
+                    if quantity > available:
+                        dish_errors.append(f'Блюдо "{dish.name}": недостаточно. Доступно: {available}')
+                    else:
+                        ReservationDish.objects.create(
+                            reservation=reservation,
+                            dish=dish,
+                            quantity=quantity
+                        )
+                except (Dish.DoesNotExist, ValueError, ValidationError) as e:
+                    dish_errors.append(f'Ошибка при добавлении блюда: {str(e)}')
+
             if dish_errors:
                 messages.warning(request, 'Бронирование создано, но были ошибки при добавлении блюд: ' + '; '.join(dish_errors))
             else:
-                messages.success(request, f'Бронирование успешно создано! Вам назначен столик №{table.table_number}.')
+                msg = f'Бронирование успешно создано! Вам назначен столик №{table.table_number}.'
+                if dish_qty_map:
+                    msg += f' Итого к оплате: {order_total_amt} ₽.'
+                    if promos and disc_amt and disc_amt > 0:
+                        msg += f' (позиции {subtotal_amt} ₽, скидка {disc_amt} ₽).'
+                messages.success(request, msg)
             return redirect('home')
         except (ValueError, TypeError) as e:
             messages.error(request, f'Ошибка при обработке данных: {str(e)}')
@@ -407,6 +532,7 @@ def reservation_create(request):
         'time_slots': time_slots,
         'all_dishes': all_dishes,
         'dishes_by_date': dishes_by_date_json,
+        **client_home_promotion_context(),
     }
     return render(request, 'home.html', context)
 
@@ -414,7 +540,13 @@ def reservation_create(request):
 @login_required
 @user_passes_test(is_client, login_url='/')
 def reservation_detail(request, pk):
-    reservation = get_object_or_404(Reservation, pk=pk, user=request.user)
+    reservation = get_object_or_404(
+        Reservation.objects.select_related('applied_promotion', 'table').prefetch_related(
+            'applied_promotion_links__promotion'
+        ),
+        pk=pk,
+        user=request.user,
+    )
     
     dishes = ReservationDish.objects.filter(reservation=reservation)
     can_modify = reservation.can_modify_or_cancel()
@@ -536,6 +668,19 @@ def reservation_edit(request, pk):
                 messages.warning(request, 'Бронирование изменено, но были ошибки при добавлении блюд: ' + '; '.join(dish_errors))
             else:
                 messages.success(request, 'Бронирование успешно изменено!')
+            lines = ReservationDish.objects.filter(reservation=reservation).select_related('dish')
+            qty_map = {rd.dish_id: rd.quantity for rd in lines}
+            dishes_by = {rd.dish_id: rd.dish for rd in lines}
+            sub = order_subtotal(qty_map, dishes_by)
+            reservation.applied_promotion_links.all().delete()
+            reservation.applied_promotion = None
+            reservation.promotion_discount_total = Decimal('0')
+            reservation.order_subtotal = sub
+            reservation.order_total = sub
+            reservation.save(update_fields=[
+                'applied_promotion', 'promotion_discount_total',
+                'order_subtotal', 'order_total',
+            ])
             return redirect('reservation_detail', pk=reservation.pk)
         except (ValueError, TypeError) as e:
             messages.error(request, f'Ошибка при обработке данных: {str(e)}')
@@ -746,81 +891,69 @@ def reservation_dish_delete(request, reservation_pk, dish_pk):
     return render(request, 'bookings/reservation_dish_confirm_delete.html', context)
 
 
-# ========== ЗАКАЗЫ НА ВЫНОС ==========
+# ========== КАБИНЕТ АДМИНИСТРАТОРА ==========
+
+LOW_STOCK_THRESHOLD = 5
+
 
 @login_required
-@user_passes_test(is_client, login_url='/')
-def takeout_order_create(request):
-    """Создание заказа на вынос"""
-    # Создаем UserProfile, если его нет
-    UserProfile.objects.get_or_create(
-        user=request.user,
-        defaults={'role': 'client'}
+@user_passes_test(is_admin_app, login_url='/')
+def admin_cabinet(request):
+    now = timezone.now()
+    local_now = timezone.localtime(now)
+    today_date = local_now.date()
+    week_ago = now - timedelta(days=7)
+
+    reservations_today = Reservation.objects.filter(start_time__date=today_date).count()
+    reservations_active = Reservation.objects.filter(
+        start_time__lte=now, end_time__gte=now
+    ).count()
+    reservations_completed_week = Reservation.objects.filter(
+        end_time__lt=now, end_time__gte=week_ago
+    ).count()
+    complaints_new = VenueComplaint.objects.filter(status='new').count()
+    reviews_total = DishReview.objects.count()
+    dishes_low_stock = list(
+        Dish.objects.filter(available_quantity__lt=LOW_STOCK_THRESHOLD)
+        .order_by('available_quantity', 'name')[:12]
     )
-    
-    if request.method == 'POST':
-        try:
-            # Создаем заказ
-            order = TakeoutOrder.objects.create(user=request.user, status='pending')
-            
-            # Обрабатываем блюда из формы
-            from django.db.models import Sum
-            dish_errors = []
-            
-            for key, value in request.POST.items():
-                if key.startswith('dish_quantity_'):
-                    dish_id = int(key.replace('dish_quantity_', ''))
-                    quantity = int(value) if value else 0
-                    
-                    if quantity > 0:
-                        try:
-                            dish = Dish.objects.get(pk=dish_id)
-                            
-                            # Проверка доступности
-                            reserved_result = ReservationDish.objects.filter(
-                                dish=dish,
-                                reservation__end_time__gte=timezone.now()
-                            ).aggregate(total=Sum('quantity'))
-                            reserved_in_reservations = reserved_result['total'] or 0
-                            
-                            reserved_in_takeout = TakeoutOrderItem.objects.filter(
-                                dish=dish,
-                                order__status__in=['pending', 'preparing', 'ready']
-                            ).aggregate(total=Sum('quantity'))['total'] or 0
-                            
-                            total_reserved = reserved_in_reservations + reserved_in_takeout
-                            available = dish.available_quantity - total_reserved
-                            
-                            if quantity > available:
-                                dish_errors.append(f'Блюдо "{dish.name}": недостаточно. Доступно: {available}')
-                            else:
-                                TakeoutOrderItem.objects.create(
-                                    order=order,
-                                    dish=dish,
-                                    quantity=quantity
-                                )
-                        except (Dish.DoesNotExist, ValueError, ValidationError) as e:
-                            dish_errors.append(f'Ошибка при добавлении блюда: {str(e)}')
-            
-            if dish_errors:
-                order.delete()  # Удаляем заказ, если были ошибки
-                messages.error(request, 'Ошибки при создании заказа: ' + '; '.join(dish_errors))
-                return redirect('home')
-            else:
-                messages.success(request, f'Заказ на вынос #{order.pk} успешно создан!')
-                return redirect('home')
-        except Exception as e:
-            messages.error(request, f'Ошибка при создании заказа: {str(e)}')
-            return redirect('home')
-    
-    # Для GET запроса просто редиректим на главную
-    return redirect('home')
+    users_by_role = list(
+        UserProfile.objects.values('role').annotate(n=Count('id')).order_by('role')
+    )
+    recent_reservations = (
+        Reservation.objects.select_related('user', 'table')
+        .order_by('-created_at')[:10]
+    )
+    recent_complaints = (
+        VenueComplaint.objects.select_related('user').order_by('-created_at')[:8]
+    )
+    recent_reviews = (
+        DishReview.objects.select_related('user', 'dish').order_by('-created_at')[:8]
+    )
+
+    return render(
+        request,
+        'bookings/admin_cabinet.html',
+        {
+            'reservations_today': reservations_today,
+            'reservations_active': reservations_active,
+            'reservations_completed_week': reservations_completed_week,
+            'complaints_new': complaints_new,
+            'reviews_total': reviews_total,
+            'dishes_low_stock': dishes_low_stock,
+            'users_by_role': users_by_role,
+            'recent_reservations': recent_reservations,
+            'recent_complaints': recent_complaints,
+            'recent_reviews': recent_reviews,
+            'low_stock_threshold': LOW_STOCK_THRESHOLD,
+        },
+    )
 
 
 # ========== ЛИЧНЫЙ КАБИНЕТ ОПЕРАТОРА ==========
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_cabinet(request):
     """Личный кабинет оператора"""
     reservations = Reservation.objects.all().order_by('-start_time')[:20]
@@ -836,7 +969,7 @@ def operator_cabinet(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_reservations(request):
     """Просмотр всех бронирований оператором"""
     reservations = Reservation.objects.all().order_by('-start_time')
@@ -875,7 +1008,7 @@ def operator_reservations(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_reservation_detail(request, pk):
     """Детальная информация о бронировании для оператора"""
     reservation = get_object_or_404(Reservation, pk=pk)
@@ -889,7 +1022,7 @@ def operator_reservation_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_reservation_delete(request, pk):
     """Удаление бронирования оператором"""
     reservation = get_object_or_404(Reservation, pk=pk)
@@ -908,7 +1041,7 @@ def operator_reservation_delete(request, pk):
 # ========== УПРАВЛЕНИЕ СТОЛИКАМИ (ОПЕРАТОР) ==========
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_tables(request):
     """Список столиков для оператора"""
     tables = Table.objects.all().order_by('table_number')
@@ -926,7 +1059,7 @@ def operator_tables(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_table_create(request):
     """Создание столика"""
     if request.method == 'POST':
@@ -947,7 +1080,7 @@ def operator_table_create(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_table_detail(request, pk):
     """Детальная информация о столике"""
     table = get_object_or_404(Table, pk=pk)
@@ -961,7 +1094,7 @@ def operator_table_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_table_edit(request, pk):
     """Редактирование столика"""
     table = get_object_or_404(Table, pk=pk)
@@ -985,7 +1118,7 @@ def operator_table_edit(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_table_delete(request, pk):
     """Удаление столика"""
     table = get_object_or_404(Table, pk=pk)
@@ -1006,7 +1139,7 @@ def operator_table_delete(request, pk):
 # ========== УПРАВЛЕНИЕ БЛЮДАМИ (ОПЕРАТОР) ==========
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_dishes(request):
     """Список блюд для оператора"""
     dishes = Dish.objects.all().order_by('name')
@@ -1024,7 +1157,7 @@ def operator_dishes(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_dish_create(request):
     """Создание блюда"""
     if request.method == 'POST':
@@ -1051,7 +1184,7 @@ def operator_dish_create(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_dish_detail(request, pk):
     """Детальная информация о блюде"""
     dish = get_object_or_404(Dish, pk=pk)
@@ -1065,7 +1198,7 @@ def operator_dish_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_dish_edit(request, pk):
     """Редактирование блюда"""
     dish = get_object_or_404(Dish, pk=pk)
@@ -1095,7 +1228,7 @@ def operator_dish_edit(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_dish_delete(request, pk):
     """Удаление блюда"""
     dish = get_object_or_404(Dish, pk=pk)
@@ -1267,10 +1400,10 @@ def check_available_time_slots(request):
 # ========== УПРАВЛЕНИЕ МЕНЮ (ОПЕРАТОР) ==========
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menus(request):
     """Список еженедельных меню для оператора (только рабочие дни)"""
-    menus = WeeklyMenu.objects.filter(day_of_week__lt=5).order_by('day_of_week')  # Только рабочие дни (0-4)
+    menus = WeeklyMenuDaySettings.objects.filter(day_of_week__lt=5).order_by('day_of_week')
     overrides = MenuOverride.objects.all().order_by('-date_from')[:10]
     
     context = {
@@ -1281,7 +1414,7 @@ def operator_menus(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_view_date(request):
     """Просмотр меню на выбранную дату"""
     date_str = request.GET.get('date')
@@ -1299,10 +1432,12 @@ def operator_menu_view_date(request):
         weekly_menu = None
         weekly_dishes = []
         try:
-            weekly_menu = WeeklyMenu.objects.get(day_of_week=day_of_week, is_active=True)
-            weekly_menu_items = WeeklyMenuItem.objects.filter(menu=weekly_menu).order_by('order', 'dish__name')
+            weekly_menu = WeeklyMenuDaySettings.objects.get(day_of_week=day_of_week, is_active=True)
+            weekly_menu_items = WeeklyMenuItem.objects.filter(day_settings=weekly_menu).order_by(
+                'order', 'dish__name'
+            )
             weekly_dishes = [item.dish for item in weekly_menu_items]
-        except WeeklyMenu.DoesNotExist:
+        except WeeklyMenuDaySettings.DoesNotExist:
             pass
         
         # Получаем активные переопределения для этой даты
@@ -1347,7 +1482,7 @@ def operator_menu_view_date(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menus_create_all(request):
     """Создание меню на рабочие дни недели (понедельник-пятница)"""
     all_dishes = Dish.objects.all().order_by('name')
@@ -1358,12 +1493,12 @@ def operator_menus_create_all(request):
     day_names_list = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница']
     
     for idx, day in enumerate(working_days):
-        menu, created = WeeklyMenu.objects.get_or_create(day_of_week=day)
+        menu, created = WeeklyMenuDaySettings.objects.get_or_create(day_of_week=day)
         working_days_data.append({
             'day': day,
             'day_name': day_names_list[idx],
             'menu': menu,
-            'items': list(WeeklyMenuItem.objects.filter(menu=menu).values_list('dish_id', flat=True))
+            'items': list(WeeklyMenuItem.objects.filter(day_settings=menu).values_list('dish_id', flat=True))
         })
     
     if request.method == 'POST':
@@ -1375,7 +1510,7 @@ def operator_menus_create_all(request):
             menu.save()
             
             # Удаляем все существующие блюда для этого дня
-            WeeklyMenuItem.objects.filter(menu=menu).delete()
+            WeeklyMenuItem.objects.filter(day_settings=menu).delete()
             
             # Добавляем выбранные блюда
             selected_dishes = request.POST.getlist(f'day_{day}_dishes')
@@ -1383,7 +1518,7 @@ def operator_menus_create_all(request):
                 try:
                     dish = Dish.objects.get(pk=int(dish_id))
                     WeeklyMenuItem.objects.create(
-                        menu=menu,
+                        day_settings=menu,
                         dish=dish,
                         order=idx
                     )
@@ -1401,12 +1536,12 @@ def operator_menus_create_all(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_edit(request, day_of_week):
     """Редактирование меню на день недели"""
-    menu, created = WeeklyMenu.objects.get_or_create(day_of_week=day_of_week)
+    menu, created = WeeklyMenuDaySettings.objects.get_or_create(day_of_week=day_of_week)
     all_dishes = Dish.objects.all().order_by('name')
-    menu_items = WeeklyMenuItem.objects.filter(menu=menu).order_by('order', 'dish__name')
+    menu_items = WeeklyMenuItem.objects.filter(day_settings=menu).order_by('order', 'dish__name')
     
     if request.method == 'POST':
         # Обработка формы
@@ -1414,7 +1549,7 @@ def operator_menu_edit(request, day_of_week):
         menu.save()
         
         # Удаляем все существующие блюда
-        WeeklyMenuItem.objects.filter(menu=menu).delete()
+        WeeklyMenuItem.objects.filter(day_settings=menu).delete()
         
         # Добавляем выбранные блюда
         selected_dishes = request.POST.getlist('dishes')
@@ -1422,7 +1557,7 @@ def operator_menu_edit(request, day_of_week):
             try:
                 dish = Dish.objects.get(pk=int(dish_id))
                 WeeklyMenuItem.objects.create(
-                    menu=menu,
+                    day_settings=menu,
                     dish=dish,
                     order=idx
                 )
@@ -1443,7 +1578,7 @@ def operator_menu_edit(request, day_of_week):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_override_create(request):
     """Создание переопределения меню"""
     all_dishes = Dish.objects.all().order_by('name')
@@ -1503,7 +1638,7 @@ def operator_menu_override_create(request):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_override_detail(request, pk):
     """Детальная информация о переопределении меню"""
     override = get_object_or_404(MenuOverride, pk=pk)
@@ -1517,7 +1652,7 @@ def operator_menu_override_detail(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_override_edit(request, pk):
     """Редактирование переопределения меню"""
     override = get_object_or_404(MenuOverride, pk=pk)
@@ -1577,7 +1712,7 @@ def operator_menu_override_edit(request, pk):
 
 
 @login_required
-@user_passes_test(is_operator, login_url='/')
+@user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_override_delete(request, pk):
     """Удаление переопределения меню"""
     override = get_object_or_404(MenuOverride, pk=pk)
@@ -1589,3 +1724,414 @@ def operator_menu_override_delete(request, pk):
     
     context = {'override': override}
     return render(request, 'bookings/operator_menu_override_confirm_delete.html', context)
+
+
+def _parse_promo_datetime(post, key):
+    s = (post.get(key) or '').strip()
+    if not s:
+        return None
+    try:
+        if 'T' in s:
+            dt_naive = datetime.strptime(s[:16], '%Y-%m-%dT%H:%M')
+        else:
+            dt_naive = datetime.strptime(s, '%Y-%m-%d %H:%M')
+        return MOSCOW_TZ.localize(dt_naive)
+    except ValueError:
+        return None
+
+
+# ---------- Оператор: новости ----------
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_news_list(request):
+    items = News.objects.all().order_by('-published_at')
+    return render(request, 'bookings/operator_news_list.html', {'news_list': items})
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_news_create(request):
+    if request.method == 'POST':
+        title = request.POST.get('title', '').strip()
+        summary = request.POST.get('summary', '').strip()
+        body = request.POST.get('body', '').strip()
+        is_published = request.POST.get('is_published') == 'on'
+        published_at = _parse_promo_datetime(request.POST, 'published_at_local') or timezone.now()
+        if not title or not body:
+            messages.error(request, 'Заполните заголовок и текст.')
+        else:
+            News.objects.create(
+                title=title,
+                summary=summary,
+                body=body,
+                is_published=is_published,
+                published_at=published_at,
+            )
+            messages.success(request, 'Новость создана.')
+            return redirect('operator_news_list')
+    return render(request, 'bookings/operator_news_form.html', {'action': 'create', 'news_item': None})
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_news_edit(request, pk):
+    news_item = get_object_or_404(News, pk=pk)
+    if request.method == 'POST':
+        news_item.title = request.POST.get('title', '').strip()
+        news_item.summary = request.POST.get('summary', '').strip()
+        news_item.body = request.POST.get('body', '').strip()
+        news_item.is_published = request.POST.get('is_published') == 'on'
+        dt = _parse_promo_datetime(request.POST, 'published_at_local')
+        if dt:
+            news_item.published_at = dt
+        news_item.save()
+        messages.success(request, 'Новость сохранена.')
+        return redirect('operator_news_list')
+    return render(request, 'bookings/operator_news_form.html', {'action': 'edit', 'news_item': news_item})
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_news_delete(request, pk):
+    news_item = get_object_or_404(News, pk=pk)
+    if request.method == 'POST':
+        news_item.delete()
+        messages.success(request, 'Новость удалена.')
+        return redirect('operator_news_list')
+    return render(request, 'bookings/operator_news_confirm_delete.html', {'news_item': news_item})
+
+
+# ---------- Оператор: акции ----------
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_promotion_list(request):
+    promos = Promotion.objects.all().order_by('-valid_from')
+    return render(request, 'bookings/operator_promotion_list.html', {'promotions': promos})
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_promotion_create(request):
+    all_dishes = Dish.objects.all().order_by('name')
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        kind = request.POST.get('kind', Promotion.KIND_SINGLE)
+        discount_type = request.POST.get('discount_type', Promotion.DISCOUNT_PERCENT)
+        try:
+            discount_value = Decimal(request.POST.get('discount_value', '0'))
+        except Exception:
+            discount_value = Decimal('0')
+        is_active = request.POST.get('is_active') == 'on'
+        vf = _parse_promo_datetime(request.POST, 'valid_from_local')
+        vt = _parse_promo_datetime(request.POST, 'valid_to_local')
+        if not name or not vf or not vt:
+            messages.error(request, 'Укажите название и период действия.')
+            return render(
+                request,
+                'bookings/operator_promotion_form.html',
+                {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+            )
+        if vf >= vt:
+            messages.error(request, 'Дата «до» должна быть позже «с».')
+            return render(
+                request,
+                'bookings/operator_promotion_form.html',
+                {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+            )
+        target_id = request.POST.get('target_dish') or ''
+        target_dish = None
+        if kind == Promotion.KIND_SINGLE:
+            if not target_id:
+                messages.error(request, 'Выберите блюдо для акции.')
+                return render(
+                    request,
+                    'bookings/operator_promotion_form.html',
+                    {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+                )
+            target_dish = get_object_or_404(Dish, pk=int(target_id))
+        p = Promotion(
+            name=name,
+            description=description,
+            kind=kind,
+            discount_type=discount_type,
+            discount_value=discount_value,
+            valid_from=vf,
+            valid_to=vt,
+            is_active=is_active,
+            target_dish=target_dish,
+        )
+        try:
+            p.full_clean()
+            p.save()
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return render(
+                request,
+                'bookings/operator_promotion_form.html',
+                {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+            )
+        if kind == Promotion.KIND_COMBO:
+            dish_ids = request.POST.getlist('combo_dish_id')
+            min_qs = request.POST.getlist('combo_min_qty')
+            for i, did in enumerate(dish_ids):
+                if not did:
+                    continue
+                try:
+                    mq = int(min_qs[i]) if i < len(min_qs) else 1
+                    mq = max(1, mq)
+                    d = Dish.objects.get(pk=int(did))
+                    PromotionComboItem.objects.create(promotion=p, dish=d, min_quantity=mq)
+                except (ValueError, Dish.DoesNotExist, IndexError):
+                    continue
+            if not p.combo_items.exists():
+                p.delete()
+                messages.error(request, 'Добавьте хотя бы одно блюдо в комбо.')
+                return render(
+                    request,
+                    'bookings/operator_promotion_form.html',
+                    {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+                )
+        messages.success(request, 'Акция создана.')
+        return redirect('operator_promotion_list')
+    return render(
+        request,
+        'bookings/operator_promotion_form.html',
+        {'action': 'create', 'promotion': None, 'all_dishes': all_dishes, 'combo_rows': []},
+    )
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_promotion_edit(request, pk):
+    promotion = get_object_or_404(Promotion.objects.prefetch_related('combo_items'), pk=pk)
+    all_dishes = Dish.objects.all().order_by('name')
+    combo_rows = list(promotion.combo_items.select_related('dish').all())
+    if request.method == 'POST':
+        promotion.name = request.POST.get('name', '').strip()
+        promotion.description = request.POST.get('description', '').strip()
+        promotion.kind = request.POST.get('kind', Promotion.KIND_SINGLE)
+        promotion.discount_type = request.POST.get('discount_type', Promotion.DISCOUNT_PERCENT)
+        try:
+            promotion.discount_value = Decimal(request.POST.get('discount_value', '0'))
+        except Exception:
+            pass
+        promotion.is_active = request.POST.get('is_active') == 'on'
+        vf = _parse_promo_datetime(request.POST, 'valid_from_local')
+        vt = _parse_promo_datetime(request.POST, 'valid_to_local')
+        if vf and vt:
+            promotion.valid_from = vf
+            promotion.valid_to = vt
+        tid = request.POST.get('target_dish') or ''
+        if promotion.kind == Promotion.KIND_SINGLE and tid:
+            promotion.target_dish = get_object_or_404(Dish, pk=int(tid))
+        else:
+            promotion.target_dish = None
+        try:
+            promotion.full_clean()
+            promotion.save()
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return render(
+                request,
+                'bookings/operator_promotion_form.html',
+                {
+                    'action': 'edit',
+                    'promotion': promotion,
+                    'all_dishes': all_dishes,
+                    'combo_rows': combo_rows,
+                },
+            )
+        promotion.combo_items.all().delete()
+        if promotion.kind == Promotion.KIND_COMBO:
+            dish_ids = request.POST.getlist('combo_dish_id')
+            min_qs = request.POST.getlist('combo_min_qty')
+            for i, did in enumerate(dish_ids):
+                if not did:
+                    continue
+                try:
+                    mq = int(min_qs[i]) if i < len(min_qs) else 1
+                    mq = max(1, mq)
+                    d = Dish.objects.get(pk=int(did))
+                    PromotionComboItem.objects.create(promotion=promotion, dish=d, min_quantity=mq)
+                except (ValueError, Dish.DoesNotExist, IndexError):
+                    continue
+            if not promotion.combo_items.exists():
+                messages.error(request, 'Комбо должно содержать хотя бы одно блюдо.')
+                return redirect('operator_promotion_edit', pk=promotion.pk)
+        messages.success(request, 'Акция обновлена.')
+        return redirect('operator_promotion_list')
+    return render(
+        request,
+        'bookings/operator_promotion_form.html',
+        {
+            'action': 'edit',
+            'promotion': promotion,
+            'all_dishes': all_dishes,
+            'combo_rows': combo_rows,
+        },
+    )
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_promotion_delete(request, pk):
+    promotion = get_object_or_404(Promotion, pk=pk)
+    if request.method == 'POST':
+        promotion.delete()
+        messages.success(request, 'Акция удалена.')
+        return redirect('operator_promotion_list')
+    return render(request, 'bookings/operator_promotion_confirm_delete.html', {'promotion': promotion})
+
+
+# ---------- Оператор: жалобы ----------
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_complaint_list(request):
+    if request.method == 'POST':
+        cid = request.POST.get('complaint_id')
+        new_status = request.POST.get('status')
+        if cid and new_status in dict(VenueComplaint.STATUS_CHOICES):
+            VenueComplaint.objects.filter(pk=cid).update(status=new_status)
+            messages.success(request, 'Статус обновлён.')
+        return redirect('operator_complaint_list')
+    complaints = VenueComplaint.objects.select_related('user').order_by('-created_at')
+    return render(
+        request,
+        'bookings/operator_complaint_list.html',
+        {
+            'complaints': complaints,
+            'complaint_statuses': VenueComplaint.STATUS_CHOICES,
+        },
+    )
+
+
+# ---------- Клиент: история заказов и отзывы ----------
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_order_list(request):
+    orders = Reservation.objects.filter(user=request.user).order_by('-start_time')
+    return render(request, 'bookings/client_order_list.html', {'orders': orders})
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_order_detail(request, pk):
+    reservation = get_object_or_404(
+        Reservation.objects.select_related('applied_promotion', 'table').prefetch_related(
+            'applied_promotion_links__promotion'
+        ),
+        pk=pk,
+        user=request.user,
+    )
+    lines = reservation.dishes.select_related('dish')
+    completed = is_order_completed_for_review(reservation)
+    reviewed_line_ids = set(
+        DishReview.objects.filter(reservation_dish__reservation=reservation).values_list(
+            'reservation_dish_id', flat=True
+        )
+    )
+    line_info = []
+    for line in lines:
+        line_info.append(
+            {
+                'line': line,
+                'can_review': completed and line.pk not in reviewed_line_ids,
+            }
+        )
+    return render(
+        request,
+        'bookings/client_order_detail.html',
+        {'reservation': reservation, 'line_info': line_info, 'completed': completed},
+    )
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_dish_review_create(request, rid, line_id):
+    reservation = get_object_or_404(Reservation, pk=rid, user=request.user)
+    line = get_object_or_404(ReservationDish, pk=line_id, reservation=reservation)
+    if not is_order_completed_for_review(reservation):
+        messages.error(request, 'Отзыв можно оставить только после завершения заказа.')
+        return redirect('client_order_detail', pk=reservation.pk)
+    if DishReview.objects.filter(reservation_dish=line).exists():
+        messages.info(request, 'Отзыв по этой позиции уже оставлен.')
+        return redirect('client_order_detail', pk=reservation.pk)
+    if request.method == 'POST':
+        try:
+            rating = int(request.POST.get('rating', '0'))
+        except ValueError:
+            rating = 0
+        comment = request.POST.get('comment', '').strip()
+        if rating < 1 or rating > 5:
+            messages.error(request, 'Выберите оценку от 1 до 5.')
+        else:
+            rev = DishReview(
+                reservation_dish=line,
+                user=request.user,
+                dish=line.dish,
+                rating=rating,
+                comment=comment,
+            )
+            try:
+                rev.full_clean()
+                rev.save()
+                messages.success(request, 'Спасибо за отзыв!')
+                return redirect('client_order_detail', pk=reservation.pk)
+            except ValidationError as e:
+                messages.error(request, str(e))
+    return render(
+        request,
+        'bookings/client_dish_review_form.html',
+        {'reservation': reservation, 'line': line},
+    )
+
+
+# ---------- Клиент: жалобы ----------
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_complaint_create(request):
+    if request.method == 'POST':
+        subject = request.POST.get('subject', '').strip()
+        message = request.POST.get('message', '').strip()
+        if not subject or not message:
+            messages.error(request, 'Заполните тему и текст жалобы.')
+        else:
+            VenueComplaint.objects.create(user=request.user, subject=subject, message=message)
+            messages.success(request, 'Жалоба отправлена. Мы рассмотрим её в ближайшее время.')
+            return redirect('client_complaint_list')
+    return render(request, 'bookings/client_complaint_form.html')
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_complaint_list(request):
+    items = VenueComplaint.objects.filter(user=request.user).order_by('-created_at')
+    return render(request, 'bookings/client_complaint_list.html', {'complaints': items})
+
+
+# ---------- Клиент: новости ----------
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_news_list(request):
+    now = timezone.now()
+    items = News.objects.filter(is_published=True, published_at__lte=now).order_by('-published_at')
+    return render(request, 'bookings/client_news_list.html', {'news_list': items})
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_news_detail(request, pk):
+    now = timezone.now()
+    item = get_object_or_404(News, pk=pk, is_published=True, published_at__lte=now)
+    return render(request, 'bookings/client_news_detail.html', {'news_item': item})
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_promotion_list(request):
+    return render(
+        request,
+        'bookings/client_promotion_list.html',
+        {'promotions': get_orderable_promotions()},
+    )

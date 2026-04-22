@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Акция{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>{% if action == 'create' %}Новая акция{% else %}Редактирование акции{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Название</label>
+            <input type="text" name="name" required style="width:100%;padding:0.5rem;" value="{{ promotion.name|default:'' }}">
+        </div>
+        <div class="form-group">
+            <label>Описание для клиента</label>
+            <textarea name="description" rows="3" style="width:100%;padding:0.5rem;">{{ promotion.description|default:'' }}</textarea>
+        </div>
+        <div class="form-group">
+            <label>Тип акции</label>
+            <select name="kind" id="promoKind" style="padding:0.5rem;">
+                <option value="single_dish" {% if promotion.kind == 'single_dish' or not promotion %}selected{% endif %}>Одно блюдо</option>
+                <option value="combo" {% if promotion.kind == 'combo' %}selected{% endif %}>Комбо</option>
+            </select>
+        </div>
+        <div class="form-group" id="singleDishBlock">
+            <label>Блюдо</label>
+            <select name="target_dish" style="padding:0.5rem;">
+                <option value="">—</option>
+                {% for d in all_dishes %}
+                <option value="{{ d.pk }}" {% if promotion.target_dish_id == d.pk %}selected{% endif %}>{{ d.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" id="comboBlock" style="display:none;">
+            <label>Позиции комбо (блюдо и мин. количество)</label>
+            {% if combo_rows %}
+                {% for row in combo_rows %}
+                <div style="margin:0.5rem 0;display:flex;gap:0.5rem;align-items:center;">
+                    <select name="combo_dish_id" style="padding:0.35rem;">
+                        <option value="">—</option>
+                        {% for d in all_dishes %}
+                        <option value="{{ d.pk }}" {% if row.dish_id == d.pk %}selected{% endif %}>{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="combo_min_qty" min="1" value="{{ row.min_quantity }}" style="width:5rem;">
+                </div>
+                {% endfor %}
+            {% else %}
+                {% for i in "12345" %}
+                <div style="margin:0.5rem 0;display:flex;gap:0.5rem;align-items:center;">
+                    <select name="combo_dish_id" style="padding:0.35rem;">
+                        <option value="">—</option>
+                        {% for d in all_dishes %}
+                        <option value="{{ d.pk }}">{{ d.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="number" name="combo_min_qty" min="1" value="1" style="width:5rem;">
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+        <div class="form-group">
+            <label>Тип скидки</label>
+            <select name="discount_type" style="padding:0.5rem;">
+                <option value="percent" {% if promotion.discount_type == 'percent' or not promotion %}selected{% endif %}>Процент</option>
+                <option value="fixed_off" {% if promotion.discount_type == 'fixed_off' %}selected{% endif %}>Фикс. сумма (₽)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Значение (процент или рубли)</label>
+            <input type="text" name="discount_value" required style="width:12rem;padding:0.5rem;" value="{{ promotion.discount_value|default:'0' }}">
+        </div>
+        <div class="form-group">
+            <label>Действует с</label>
+            <input type="datetime-local" name="valid_from_local" required
+                   value="{% if promotion %}{{ promotion.valid_from|date:'Y-m-d\TH:i' }}{% endif %}">
+        </div>
+        <div class="form-group">
+            <label>Действует до</label>
+            <input type="datetime-local" name="valid_to_local" required
+                   value="{% if promotion %}{{ promotion.valid_to|date:'Y-m-d\TH:i' }}{% endif %}">
+        </div>
+        <label><input type="checkbox" name="is_active" {% if promotion.is_active or not promotion %}checked{% endif %}> Активна</label>
+        <p style="margin-top:1rem;">
+            <button type="submit" class="btn btn-success">Сохранить</button>
+            <a href="{% url 'operator_promotion_list' %}" class="btn">Отмена</a>
+        </p>
+    </form>
+</div>
+<script>
+(function() {
+    var kind = document.getElementById('promoKind');
+    var single = document.getElementById('singleDishBlock');
+    var combo = document.getElementById('comboBlock');
+    function sync() {
+        if (kind.value === 'combo') {
+            single.style.display = 'none';
+            combo.style.display = 'block';
+        } else {
+            single.style.display = 'block';
+            combo.style.display = 'none';
+        }
+    }
+    kind.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

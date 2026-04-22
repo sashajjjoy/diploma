@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Акции{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Акции</h2>
+    <a href="{% url 'operator_promotion_create' %}" class="btn btn-success">Новая акция</a>
+</div>
+<div class="card">
+    {% if promotions %}
+    <table>
+        <thead>
+            <tr><th>Название</th><th>Тип</th><th>Период</th><th>Активна</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for p in promotions %}
+            <tr>
+                <td>{{ p.name }}</td>
+                <td>{% if p.kind == 'single_dish' %}Одно блюдо{% else %}Комбо{% endif %}</td>
+                <td>{{ p.valid_from|date:"d.m.Y H:i" }} — {{ p.valid_to|date:"d.m.Y H:i" }}</td>
+                <td>{% if p.is_active %}Да{% else %}Нет{% endif %}</td>
+                <td>
+                    <a href="{% url 'operator_promotion_edit' p.pk %}" class="btn">Изменить</a>
+                    <a href="{% url 'operator_promotion_delete' p.pk %}" class="btn btn-danger">Удалить</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Акций нет.</p>
+    {% endif %}
+</div>
+{% endblock %}

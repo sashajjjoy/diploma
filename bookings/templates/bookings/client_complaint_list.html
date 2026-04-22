@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Мои жалобы{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Мои жалобы</h2>
+    <a href="{% url 'client_complaint_create' %}" class="btn btn-success">Новая жалоба</a>
+</div>
+<div class="card">
+    {% if complaints %}
+    <table>
+        <thead>
+            <tr><th>Дата</th><th>Тема</th><th>Статус</th></tr>
+        </thead>
+        <tbody>
+            {% for c in complaints %}
+            <tr>
+                <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ c.subject }}</td>
+                <td>{{ c.get_status_display }}</td>
+            </tr>
+            <tr><td colspan="3" style="padding-bottom:1rem;color:#555;">{{ c.message|linebreaksbr }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Вы ещё не отправляли жалоб.</p>
+    {% endif %}
+</div>
+{% endblock %}

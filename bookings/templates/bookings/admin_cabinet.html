@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+
+{% block title %}Кабинет администратора{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .admin-kpi {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: #fff;
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+    }
+    .admin-kpi .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        line-height: 1.2;
+    }
+    .admin-kpi .kpi-label {
+        font-size: 0.85rem;
+        opacity: 0.92;
+        margin-top: 0.35rem;
+    }
+    .admin-two-col {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        align-items: start;
+    }
+    .role-pill {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+        background: #e8eaf6;
+        font-size: 0.85rem;
+        margin-right: 0.35rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Кабинет администратора</h2>
+    <p style="color: #5a6c7d;">Обзор системы: бронирования, жалобы, отзывы, остатки. Переходы в другие разделы — в шапке сайта.</p>
+</div>
+
+<div class="admin-kpi-grid">
+    <div class="admin-kpi">
+        <div class="kpi-value">{{ reservations_today }}</div>
+        <div class="kpi-label">Заказов / броней на сегодня</div>
+    </div>
+    <div class="admin-kpi">
+        <div class="kpi-value">{{ reservations_active }}</div>
+        <div class="kpi-label">Сейчас активны</div>
+    </div>
+    <div class="admin-kpi">
+        <div class="kpi-value">{{ reservations_completed_week }}</div>
+        <div class="kpi-label">Завершено за 7 дней</div>
+    </div>
+    <div class="admin-kpi">
+        <div class="kpi-value">{{ complaints_new }}</div>
+        <div class="kpi-label">Новых жалоб</div>
+    </div>
+    <div class="admin-kpi">
+        <div class="kpi-value">{{ reviews_total }}</div>
+        <div class="kpi-label">Отзывов о блюдах</div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem;">
+    <h3>Пользователи по ролям</h3>
+    {% if users_by_role %}
+    <p>
+        {% for row in users_by_role %}
+        <span class="role-pill">
+            {% if row.role == 'client' %}Клиенты{% elif row.role == 'operator' %}Операторы{% elif row.role == 'admin' %}Администраторы{% else %}{{ row.role }}{% endif %}: <strong>{{ row.n }}</strong>
+        </span>
+        {% endfor %}
+    </p>
+    {% else %}
+    <p>Нет данных.</p>
+    {% endif %}
+</div>
+
+{% if dishes_low_stock %}
+<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #e65100;">
+    <h3>Мало на складе (&lt; {{ low_stock_threshold }} шт.)</h3>
+    <table>
+        <thead>
+            <tr><th>Блюдо</th><th>Остаток</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for d in dishes_low_stock %}
+            <tr>
+                <td>{{ d.name }}</td>
+                <td>{{ d.available_quantity }}</td>
+                <td><a href="{% url 'operator_dish_edit' d.pk %}" class="btn">Изменить</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+<div class="admin-two-col">
+    <div class="card">
+        <h3>Последние бронирования и заказы</h3>
+        {% if recent_reservations %}
+        <table>
+            <thead>
+                <tr><th>Начало</th><th>Тип</th><th>Клиент</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for r in recent_reservations %}
+                <tr>
+                    <td>{{ r.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>{% if r.table %}Стол №{{ r.table.table_number }}{% else %}Вынос{% endif %}</td>
+                    <td>{{ r.user.get_full_name|default:r.user.username }}</td>
+                    <td><a href="{% url 'operator_reservation_detail' r.pk %}" class="btn">Открыть</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Записей нет.</p>
+        {% endif %}
+        <p style="margin-top: 1rem;"><a href="{% url 'operator_reservations' %}" class="btn">Все бронирования</a></p>
+    </div>
+
+    <div class="card">
+        <h3>Последние жалобы</h3>
+        {% if recent_complaints %}
+        <table>
+            <thead>
+                <tr><th>Дата</th><th>Тема</th><th>Статус</th><th></th></tr>
+            </thead>
+            <tbody>
+                {% for c in recent_complaints %}
+                <tr>
+                    <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ c.subject|truncatechars:40 }}</td>
+                    <td>{{ c.get_status_display }}</td>
+                    <td><a href="{% url 'operator_complaint_list' %}" class="btn">Список</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>Жалоб нет.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <h3>Последние отзывы о блюдах</h3>
+    {% if recent_reviews %}
+    <table>
+        <thead>
+            <tr><th>Дата</th><th>Блюдо</th><th>Оценка</th><th>Автор</th></tr>
+        </thead>
+        <tbody>
+            {% for rev in recent_reviews %}
+            <tr>
+                <td>{{ rev.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ rev.dish.name }}</td>
+                <td>{{ rev.rating }}★</td>
+                <td>{{ rev.user.username }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Отзывов пока нет.</p>
+    {% endif %}
+    <p style="margin-top: 1rem;"><a href="/admin/bookings/dishreview/" class="btn btn-secondary-outline">Все отзывы в Django Admin</a></p>
+</div>
+{% endblock %}

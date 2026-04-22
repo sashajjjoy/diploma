@@ -25,20 +25,120 @@
             top: 0;
             z-index: 1000;
         }
-        .navbar .clearfix {
+        .navbar-main-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             max-width: 1200px;
             margin: 0 auto;
             width: 100%;
+            gap: 1rem;
+            position: relative;
+            flex-wrap: nowrap;
         }
-        .navbar > div:first-child {
+        .navbar-nav-cluster {
             display: flex;
             align-items: center;
-            gap: 1.5rem;
-            flex-wrap: wrap;
+            gap: 0.75rem;
             flex: 1;
+            min-width: 0;
+        }
+        .navbar-expandable .navbar-main-row {
+            position: relative;
+        }
+        .navbar-sandwich {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border: none;
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background 0.2s ease;
+        }
+        .navbar-sandwich:hover {
+            background: rgba(255,255,255,0.25);
+        }
+        .navbar-sandwich .sandwich-icon {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            width: 22px;
+        }
+        .navbar-sandwich .sandwich-icon span {
+            display: block;
+            height: 2px;
+            background: currentColor;
+            border-radius: 1px;
+        }
+        .navbar-link-list {
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            gap: 0.25rem;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+        }
+        .navbar-expandable.navbar--sandwich .navbar-link-list {
+            display: none;
+            position: absolute;
+            left: auto;
+            right: 0;
+            top: calc(100% + 0.5rem);
+            min-width: min(280px, calc(100vw - 4rem));
+            flex-direction: column;
+            flex-wrap: nowrap;
+            align-items: stretch;
+            gap: 0;
+            padding: 0.5rem 0;
+            background: #5a6fd6;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            overflow: visible;
+            z-index: 1001;
+        }
+        .navbar-expandable.navbar--sandwich .navbar-link-list.is-open {
+            display: flex;
+        }
+        .navbar-expandable.navbar--sandwich .navbar-link-list a {
+            border-radius: 0;
+            padding: 0.65rem 1.25rem;
+        }
+        .navbar-expandable.navbar--sandwich .navbar-sandwich {
+            display: flex;
+        }
+        @media (max-width: 900px) {
+            .navbar-expandable .navbar-sandwich {
+                display: flex;
+            }
+            .navbar-expandable .navbar-link-list {
+                display: none;
+                position: absolute;
+                left: auto;
+                right: 0;
+                top: calc(100% + 0.5rem);
+                min-width: min(280px, calc(100vw - 4rem));
+                flex-direction: column;
+                flex-wrap: nowrap;
+                background: #5a6fd6;
+                border-radius: 8px;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+                z-index: 1001;
+                padding: 0.5rem 0;
+            }
+            .navbar-expandable .navbar-link-list.is-open {
+                display: flex;
+            }
+            .navbar-expandable .navbar-link-list a {
+                border-radius: 0;
+                padding: 0.65rem 1.25rem;
+            }
         }
         .navbar a {
             color: white;
@@ -59,8 +159,12 @@
             align-items: center;
             gap: 1rem;
             flex-wrap: wrap;
-            margin-left: auto;
-            justify-content: flex-end;
+            flex-shrink: 0;
+            justify-content: flex-start;
+        }
+        .navbar-main-row > .navbar-nav-cluster {
+            flex: 1;
+            min-width: 0;
         }
         .navbar-user span {
             opacity: 0.9;
@@ -285,9 +389,13 @@
             .navbar {
                 padding: 1rem;
             }
-            .navbar .clearfix {
-                flex-direction: column;
-                gap: 1rem;
+            .navbar-main-row {
+                flex-wrap: wrap;
+            }
+            .navbar-user {
+                width: 100%;
+                justify-content: space-between;
+                margin-left: 0;
             }
             .card {
                 padding: 1.5rem;
@@ -297,35 +405,64 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar">
-        <div class="clearfix">
-            <div>
+{% load user_tags %}
+    <nav class="navbar{% if user.is_authenticated %}{% if user|get_user_role == 'operator' or user.is_superuser or user|get_user_role == 'admin' %} navbar-expandable{% endif %}{% endif %}">
+        <div class="navbar-main-row clearfix">
+            <div class="navbar-user">
                 {% if user.is_authenticated %}
-                    {% load user_tags %}
+                <span>Пользователь: {{ user.username }}</span>
+                <a href="{% url 'logout' %}">Выйти</a>
+                {% else %}
+                <a href="{% url 'login' %}">Войти</a>
+                {% endif %}
+            </div>
+            {% if user.is_authenticated %}
+                {% if user|get_user_role == 'operator' or user.is_superuser or user|get_user_role == 'admin' %}
+                <div class="navbar-nav-cluster">
+                    <div class="navbar-link-list" id="navbarMainLinks">
                     {% if user|get_user_role == 'operator' %}
                         <a href="{% url 'operator_cabinet' %}">Главная</a>
                         <a href="{% url 'operator_reservations' %}">Бронирования</a>
                         <a href="{% url 'operator_tables' %}">Столики</a>
                         <a href="{% url 'operator_dishes' %}">Блюда</a>
                         <a href="{% url 'operator_menus' %}">Меню</a>
-                    {% elif user.is_superuser %}
-                        <a href="{% url 'home' %}">Главная</a>
-                        <a href="/admin/">Админ-панель</a>
-                    {% else %}
-                        <a href="{% url 'home' %}">Главная</a>
+                        <a href="{% url 'operator_news_list' %}">Новости</a>
+                        <a href="{% url 'operator_promotion_list' %}">Акции</a>
+                        <a href="{% url 'operator_complaint_list' %}">Жалобы</a>
+                    {% elif user.is_superuser or user|get_user_role == 'admin' %}
+                        <a href="/admin/">Django Admin</a>
+                        <a href="{% url 'admin_cabinet' %}">Админ-кабинет</a>
+                        <a href="{% url 'operator_cabinet' %}">Оператор</a>
+                        <a href="{% url 'operator_reservations' %}">Бронирования</a>
+                        <a href="{% url 'operator_tables' %}">Столики</a>
+                        <a href="{% url 'operator_dishes' %}">Блюда</a>
+                        <a href="{% url 'operator_menus' %}">Меню</a>
+                        <a href="{% url 'operator_news_list' %}">Новости</a>
+                        <a href="{% url 'operator_promotion_list' %}">Акции</a>
+                        <a href="{% url 'operator_complaint_list' %}">Жалобы</a>
+                        <a href="{% url 'home' %}">Сайт клиента</a>
                     {% endif %}
+                    </div>
+                </div>
+                <button type="button" class="navbar-sandwich" id="navbarSandwichBtn" aria-expanded="false" aria-controls="navbarMainLinks" aria-label="Открыть меню">
+                    <span class="sandwich-icon" aria-hidden="true"><span></span><span></span><span></span></span>
+                </button>
                 {% else %}
-                    <a href="{% url 'home' %}">Главная</a>
+                <div class="navbar-nav-cluster">
+                    <div class="navbar-link-list" style="flex-wrap: wrap;">
+                        <a href="{% url 'home' %}">Главная</a>
+                        <a href="{% url 'client_order_list' %}">История заказов</a>
+                        <a href="{% url 'client_news_list' %}">Новости</a>
+                        <a href="{% url 'client_promotion_list' %}">Акции</a>
+                        <a href="{% url 'client_complaint_create' %}">Жалоба</a>
+                    </div>
+                </div>
                 {% endif %}
-            </div>
-            {% if user.is_authenticated %}
-            <div class="navbar-user">
-                <span>Пользователь: {{ user.username }}</span>
-                <a href="{% url 'logout' %}">Выйти</a>
-            </div>
             {% else %}
-            <div class="navbar-user">
-                <a href="{% url 'login' %}">Войти</a>
+            <div class="navbar-nav-cluster">
+                <div class="navbar-link-list">
+                    <a href="{% url 'home' %}">Главная</a>
+                </div>
             </div>
             {% endif %}
         </div>
@@ -346,6 +483,104 @@
     </div>
 
     {% block extra_js %}{% endblock %}
+    <script>
+    (function () {
+        var nav = document.querySelector('.navbar-expandable');
+        if (!nav) return;
+        var row = nav.querySelector('.navbar-main-row');
+        var btn = document.getElementById('navbarSandwichBtn');
+        var list = document.getElementById('navbarMainLinks');
+        if (!row || !btn || !list) return;
+
+        var mq = window.matchMedia('(max-width: 900px)');
+        var resizeT;
+        var OVERFLOW_SLACK = 4;
+        /** Минимальный «воздух» под ряд ссылок; если меньше — сендвич (раньше, чем всё сожмётся). */
+        var LINK_COMFORT_PX = 68;
+
+        function isCompact() {
+            return mq.matches;
+        }
+
+        function closeMenu() {
+            list.classList.remove('is-open');
+            btn.setAttribute('aria-expanded', 'false');
+        }
+
+        /** Строка целиком переполнена или под ссылки осталось мало места (ссылки ещё видны, но уже тесно). */
+        function isHeaderOverflowing() {
+            if (row.scrollWidth > row.clientWidth + OVERFLOW_SLACK) return true;
+            if (list.scrollWidth > list.clientWidth - LINK_COMFORT_PX) return true;
+            return false;
+        }
+
+        /**
+         * Не снимаем navbar--sandwich на каждом тике: при display:none у списка
+         * измерения ломаются, а ResizeObserver ловил наш же переключение класса — отсюда мигание.
+         */
+        function checkOverflow() {
+            if (isCompact()) {
+                if (!nav.classList.contains('navbar--sandwich')) {
+                    nav.classList.add('navbar--sandwich');
+                }
+                return;
+            }
+
+            var sandwich = nav.classList.contains('navbar--sandwich');
+
+            if (!sandwich) {
+                if (isHeaderOverflowing()) {
+                    nav.classList.add('navbar--sandwich');
+                    closeMenu();
+                }
+                return;
+            }
+
+            closeMenu();
+            nav.classList.remove('navbar--sandwich');
+            void row.offsetHeight;
+            if (isHeaderOverflowing()) {
+                nav.classList.add('navbar--sandwich');
+            }
+        }
+
+        function scheduleCheck() {
+            clearTimeout(resizeT);
+            resizeT = setTimeout(checkOverflow, 150);
+        }
+
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!isCompact() && !nav.classList.contains('navbar--sandwich')) return;
+            var open = list.classList.toggle('is-open');
+            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        });
+
+        document.addEventListener('click', function (e) {
+            if (!nav.contains(e.target)) closeMenu();
+        });
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeMenu();
+        });
+
+        mq.addEventListener('change', scheduleCheck);
+        window.addEventListener('resize', scheduleCheck);
+
+        function runWhenLaidOut() {
+            requestAnimationFrame(function () {
+                checkOverflow();
+            });
+        }
+
+        if (document.readyState === 'complete') {
+            runWhenLaidOut();
+        } else {
+            window.addEventListener('load', runWhenLaidOut);
+        }
+    })();
+    </script>
 </body>
 </html>
 

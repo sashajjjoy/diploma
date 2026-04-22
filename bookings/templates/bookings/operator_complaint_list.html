@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Жалобы{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Жалобы клиентов</h2>
+</div>
+<div class="card">
+    {% if complaints %}
+    <table>
+        <thead>
+            <tr><th>Дата</th><th>Клиент</th><th>Тема</th><th>Текст</th><th>Статус</th></tr>
+        </thead>
+        <tbody>
+            {% for c in complaints %}
+            <tr>
+                <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
+                <td>{{ c.user.username }}</td>
+                <td>{{ c.subject }}</td>
+                <td style="max-width:280px;">{{ c.message|truncatewords:25 }}</td>
+                <td>
+                    <form method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="complaint_id" value="{{ c.pk }}">
+                        <select name="status" onchange="this.form.submit()" style="padding:0.35rem;">
+                            {% for val,label in complaint_statuses %}
+                            <option value="{{ val }}" {% if c.status == val %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Жалоб нет.</p>
+    {% endif %}
+</div>
+{% endblock %}

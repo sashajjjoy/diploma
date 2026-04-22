@@ -1,8 +1,8 @@
 from django.db import models
 from django.core.exceptions import ValidationError
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
-from django.db.models import Q, Sum
+from django.db.models import Q
 from django.contrib.auth.models import User
 from datetime import timedelta
 
@@ -127,6 +127,35 @@ class Reservation(models.Model):
     start_time = models.DateTimeField('Дата и время начала')
     end_time = models.DateTimeField('Дата и время окончания')
     created_at = models.DateTimeField('Дата создания', auto_now_add=True)
+    applied_promotion = models.ForeignKey(
+        'Promotion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reservations',
+        verbose_name='Применённая акция',
+    )
+    promotion_discount_total = models.DecimalField(
+        'Сумма скидки по акции',
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    order_subtotal = models.DecimalField(
+        'Сумма заказа до скидки',
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    order_total = models.DecimalField(
+        'Итого к оплате',
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
 
     class Meta:
         verbose_name = 'Бронирование'
@@ -285,124 +314,10 @@ class ReservationDish(models.Model):
         return f"{self.dish.name} x{self.quantity} (Бронирование #{self.reservation.id})"
 
 
-class TakeoutOrder(models.Model):
-    STATUS_CHOICES = [
-        ('pending', 'Ожидает обработки'),
-        ('preparing', 'Готовится'),
-        ('ready', 'Готов к выдаче'),
-        ('completed', 'Выдан'),
-        ('cancelled', 'Отменен'),
-    ]
-    
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name='takeout_orders',
-        verbose_name='Пользователь'
-    )
-    status = models.CharField(
-        'Статус',
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default='pending'
-    )
-    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
-    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
-    pickup_time = models.DateTimeField('Время получения', null=True, blank=True)
-    
-    class Meta:
-        verbose_name = 'Заказ на вынос'
-        verbose_name_plural = 'Заказы на вынос'
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        full_name = f"{self.user.first_name} {self.user.last_name}".strip() or self.user.username
-        return f"Заказ на вынос #{self.pk} - {full_name}"
-    
-    def get_total_price(self):
-        """Вычисляет общую стоимость заказа"""
-        return sum(item.get_total_price() for item in self.items.all())
-
-
-class TakeoutOrderItem(models.Model):
-    order = models.ForeignKey(
-        TakeoutOrder,
-        on_delete=models.CASCADE,
-        related_name='items',
-        verbose_name='Заказ'
-    )
-    dish = models.ForeignKey(
-        Dish,
-        on_delete=models.CASCADE,
-        related_name='takeout_order_items',
-        verbose_name='Блюдо'
-    )
-    quantity = models.PositiveIntegerField(
-        'Количество',
-        validators=[MinValueValidator(1)]
-    )
-    
-    class Meta:
-        verbose_name = 'Позиция заказа на вынос'
-        verbose_name_plural = 'Позиции заказов на вынос'
-        unique_together = [['order', 'dish']]
-        ordering = ['dish__name']
-        constraints = [
-            models.CheckConstraint(
-                check=models.Q(quantity__gt=0),
-                name='takeout_order_item_quantity_positive'
-            ),
-        ]
-    
-    def __str__(self):
-        return f"{self.dish.name} x{self.quantity} (Заказ #{self.order.id})"
-    
-    def get_total_price(self):
-        """Вычисляет общую стоимость позиции"""
-        return self.dish.price * self.quantity
-    
-    def clean(self):
-        """Валидация на уровне модели"""
-        if self.dish and self.quantity:
-            # Проверка доступности блюда
-            if self.pk:
-                reserved = TakeoutOrderItem.objects.filter(
-                    dish=self.dish
-                ).exclude(
-                    pk=self.pk
-                ).filter(
-                    order__status__in=['pending', 'preparing', 'ready']
-                ).aggregate(total=Sum('quantity'))['total'] or 0
-            else:
-                reserved = TakeoutOrderItem.objects.filter(
-                    dish=self.dish,
-                    order__status__in=['pending', 'preparing', 'ready']
-                ).aggregate(total=Sum('quantity'))['total'] or 0
-            
-            # Также учитываем резервирования в бронированиях
-            reserved_in_reservations = ReservationDish.objects.filter(
-                dish=self.dish,
-                reservation__end_time__gte=timezone.now()
-            ).aggregate(total=Sum('quantity'))['total'] or 0
-            
-            total_reserved = reserved + reserved_in_reservations
-            available = self.dish.available_quantity - total_reserved
-            
-            if self.quantity > available:
-                raise ValidationError(
-                    f'Недостаточно блюда "{self.dish.name}". Доступно: {available}, запрошено: {self.quantity}'
-                )
-    
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        super().save(*args, **kwargs)
-
-
-
 # ========== СИСТЕМА МЕНЮ ==========
 
-class WeeklyMenu(models.Model):
-    """Меню на день недели (0=понедельник, 6=воскресенье)"""
+class WeeklyMenuDaySettings(models.Model):
+    """Настройки меню на день недели: активность и привязка позиций (0=понедельник, 6=воскресенье)."""
     DAY_CHOICES = [
         (0, 'Понедельник'),
         (1, 'Вторник'),
@@ -412,28 +327,26 @@ class WeeklyMenu(models.Model):
         (5, 'Суббота'),
         (6, 'Воскресенье'),
     ]
-    
+
     day_of_week = models.IntegerField('День недели', choices=DAY_CHOICES, unique=True)
     is_active = models.BooleanField('Активно', default=True)
-    created_at = models.DateTimeField('Дата создания', auto_now_add=True)
-    updated_at = models.DateTimeField('Дата обновления', auto_now=True)
-    
+
     class Meta:
-        verbose_name = 'Еженедельное меню'
-        verbose_name_plural = 'Еженедельные меню'
+        verbose_name = 'Настройки меню на день недели'
+        verbose_name_plural = 'Настройки меню по дням недели'
         ordering = ['day_of_week']
-    
+
     def __str__(self):
         return f"Меню на {self.get_day_of_week_display()}"
 
 
 class WeeklyMenuItem(models.Model):
-    """Блюдо в еженедельном меню"""
-    menu = models.ForeignKey(
-        WeeklyMenu,
+    """Блюдо в еженедельном меню на конкретный день недели."""
+    day_settings = models.ForeignKey(
+        WeeklyMenuDaySettings,
         on_delete=models.CASCADE,
         related_name='items',
-        verbose_name='Меню'
+        verbose_name='День недели (настройки)'
     )
     dish = models.ForeignKey(
         Dish,
@@ -442,15 +355,15 @@ class WeeklyMenuItem(models.Model):
         verbose_name='Блюдо'
     )
     order = models.PositiveIntegerField('Порядок сортировки', default=0)
-    
+
     class Meta:
         verbose_name = 'Блюдо в еженедельном меню'
         verbose_name_plural = 'Блюда в еженедельном меню'
-        unique_together = [['menu', 'dish']]
+        unique_together = [['day_settings', 'dish']]
         ordering = ['order', 'dish__name']
-    
+
     def __str__(self):
-        return f"{self.dish.name} - {self.menu.get_day_of_week_display()}"
+        return f"{self.dish.name} - {self.day_settings.get_day_of_week_display()}"
 
 
 class MenuOverride(models.Model):
@@ -515,3 +428,212 @@ class MenuOverrideItem(models.Model):
     def __str__(self):
         action_text = 'Добавить' if self.action == 'add' else 'Убрать'
         return f"{action_text} {self.dish.name} - {self.override}"
+
+
+# ========== НОВОСТИ, ЖАЛОБЫ, ОТЗЫВЫ, АКЦИИ ==========
+
+class News(models.Model):
+    title = models.CharField('Заголовок', max_length=200)
+    summary = models.CharField('Кратко', max_length=500, blank=True)
+    body = models.TextField('Текст')
+    published_at = models.DateTimeField('Дата публикации')
+    is_published = models.BooleanField('Опубликовано', default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Новость'
+        verbose_name_plural = 'Новости'
+        ordering = ['-published_at', '-created_at']
+
+    def __str__(self):
+        return self.title
+
+
+class VenueComplaint(models.Model):
+    STATUS_CHOICES = [
+        ('new', 'Новая'),
+        ('seen', 'Просмотрена'),
+        ('closed', 'Закрыта'),
+    ]
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='venue_complaints',
+        verbose_name='Пользователь',
+    )
+    subject = models.CharField('Тема', max_length=200)
+    message = models.TextField('Текст жалобы')
+    status = models.CharField('Статус', max_length=20, choices=STATUS_CHOICES, default='new', db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Жалоба на заведение'
+        verbose_name_plural = 'Жалобы на заведение'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.subject} ({self.user.username})'
+
+
+class Promotion(models.Model):
+    KIND_SINGLE = 'single_dish'
+    KIND_COMBO = 'combo'
+    KIND_CHOICES = [
+        (KIND_SINGLE, 'Одно блюдо'),
+        (KIND_COMBO, 'Комбо (набор блюд)'),
+    ]
+    DISCOUNT_PERCENT = 'percent'
+    DISCOUNT_FIXED_OFF = 'fixed_off'
+    DISCOUNT_TYPE_CHOICES = [
+        (DISCOUNT_PERCENT, 'Процент от суммы'),
+        (DISCOUNT_FIXED_OFF, 'Фиксированная скидка (руб.)'),
+    ]
+
+    name = models.CharField('Название', max_length=200)
+    description = models.TextField('Описание для клиента', blank=True)
+    kind = models.CharField('Тип', max_length=20, choices=KIND_CHOICES)
+    discount_type = models.CharField('Тип скидки', max_length=20, choices=DISCOUNT_TYPE_CHOICES)
+    discount_value = models.DecimalField(
+        'Значение скидки',
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text='Процент (0–100) или сумма в рублях в зависимости от типа',
+    )
+    valid_from = models.DateTimeField('Действует с')
+    valid_to = models.DateTimeField('Действует до')
+    is_active = models.BooleanField('Активна', default=True, db_index=True)
+    target_dish = models.ForeignKey(
+        Dish,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='single_promotions',
+        verbose_name='Блюдо (только для типа «одно блюдо»)',
+    )
+
+    class Meta:
+        verbose_name = 'Акция'
+        verbose_name_plural = 'Акции'
+        ordering = ['-valid_from']
+        indexes = [
+            models.Index(fields=['is_active', 'valid_from', 'valid_to']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+    def clean(self):
+        if self.kind == self.KIND_SINGLE and not self.target_dish_id:
+            raise ValidationError({'target_dish': 'Для акции на одно блюдо укажите блюдо.'})
+        if self.kind == self.KIND_COMBO and self.target_dish_id:
+            raise ValidationError({'target_dish': 'Для комбо-акции поле блюда не используется.'})
+        if self.discount_type == self.DISCOUNT_PERCENT and self.discount_value > 100:
+            raise ValidationError({'discount_value': 'Процент не может превышать 100.'})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
+class PromotionComboItem(models.Model):
+    promotion = models.ForeignKey(
+        Promotion,
+        on_delete=models.CASCADE,
+        related_name='combo_items',
+        verbose_name='Акция',
+    )
+    dish = models.ForeignKey(
+        Dish,
+        on_delete=models.CASCADE,
+        related_name='promotion_combo_entries',
+        verbose_name='Блюдо в наборе',
+    )
+    min_quantity = models.PositiveIntegerField('Мин. количество', default=1, validators=[MinValueValidator(1)])
+
+    class Meta:
+        verbose_name = 'Позиция комбо'
+        verbose_name_plural = 'Позиции комбо'
+        unique_together = [['promotion', 'dish']]
+        ordering = ['promotion', 'dish__name']
+
+    def __str__(self):
+        return f'{self.promotion.name}: {self.dish.name} ×{self.min_quantity}'
+
+
+class ReservationAppliedPromotion(models.Model):
+    """Какие акции применены к заказу (каждая акция не более одного раза)."""
+
+    reservation = models.ForeignKey(
+        Reservation,
+        on_delete=models.CASCADE,
+        related_name='applied_promotion_links',
+        verbose_name='Бронирование',
+    )
+    promotion = models.ForeignKey(
+        Promotion,
+        on_delete=models.PROTECT,
+        related_name='reservation_applied_rows',
+        verbose_name='Акция',
+    )
+    discount_amount = models.DecimalField(
+        'Скидка по этой акции',
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+
+    class Meta:
+        verbose_name = 'Применённая акция'
+        verbose_name_plural = 'Применённые акции'
+        unique_together = [['reservation', 'promotion']]
+        ordering = ['promotion__name']
+
+    def __str__(self):
+        return f'{self.reservation_id}: {self.promotion.name}'
+
+
+class DishReview(models.Model):
+    reservation_dish = models.OneToOneField(
+        ReservationDish,
+        on_delete=models.CASCADE,
+        related_name='review',
+        verbose_name='Строка заказа',
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='dish_reviews',
+        verbose_name='Пользователь',
+    )
+    dish = models.ForeignKey(
+        Dish,
+        on_delete=models.CASCADE,
+        related_name='reviews',
+        verbose_name='Блюдо',
+    )
+    rating = models.PositiveSmallIntegerField(
+        'Оценка',
+        validators=[MinValueValidator(1), MaxValueValidator(5)],
+    )
+    comment = models.TextField('Комментарий', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Отзыв о блюде'
+        verbose_name_plural = 'Отзывы о блюдах'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.dish.name}: {self.rating}★'
+
+    def clean(self):
+        if self.reservation_dish_id:
+            rd = self.reservation_dish
+            if rd.dish_id != self.dish_id:
+                raise ValidationError('Блюдо отзыва должно совпадать с блюдом в строке заказа.')
+            if rd.reservation.user_id != self.user_id:
+                raise ValidationError('Отзыв может оставить только автор заказа.')

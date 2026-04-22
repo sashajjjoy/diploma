@@ -1,7 +1,7 @@
 """restaurant_booking URL Configuration"""
 from django.contrib import admin
 from django.urls import path, include
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
@@ -17,13 +17,18 @@ def home(request):
     if not request.user.is_authenticated:
         from django.contrib.auth.views import redirect_to_login
         return redirect_to_login(request.get_full_path())
-    
-    # Если пользователь - оператор, редирект в кабинет оператора
+
+    if request.user.is_superuser:
+        return redirect('admin_cabinet')
+
+    # Если пользователь - оператор или администратор — в соответствующий кабинет
     try:
         profile = request.user.profile
         if profile.role == 'operator':
             return redirect('operator_cabinet')
-    except:
+        if profile.role == 'admin':
+            return redirect('admin_cabinet')
+    except Exception:
         pass
     
     # Если это POST запрос от клиента, обрабатываем форму
@@ -92,7 +97,7 @@ def home(request):
                 
                 # Получаем доступные блюда для предзаказа
                 from bookings.models import Dish
-                from bookings.views import get_menu_dishes_for_date
+                from bookings.views import get_menu_dishes_for_date, client_home_promotion_context
                 import json
                 all_dishes = Dish.objects.filter(available_quantity__gt=0).order_by('name')
                 
@@ -101,10 +106,13 @@ def home(request):
                 for date_key, date_label, date_obj in available_dates:
                     dishes_by_date[date_key] = list(get_menu_dishes_for_date(date_obj))
                 dishes_by_date_json = json.dumps(dishes_by_date)
+                promo_ctx = client_home_promotion_context()
             else:
                 all_dishes = []
+                promo_ctx = {}
         except:
             all_dishes = []
+            promo_ctx = {}
             pass
     
     context = {
@@ -114,6 +122,11 @@ def home(request):
         'all_dishes': all_dishes if 'all_dishes' in locals() else [],
         'dishes_by_date': dishes_by_date_json if 'dishes_by_date_json' in locals() else '{}',
         'page_obj': reservations_page,
+        **(promo_ctx if 'promo_ctx' in locals() and promo_ctx else {
+            'active_promotions': [],
+            'combo_promotions': [],
+            'single_promos_by_dish': {},
+        }),
     }
     return render(request, 'home.html', context)
 

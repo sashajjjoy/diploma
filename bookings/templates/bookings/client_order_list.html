@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}История заказов{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>История заказов</h2>
+    <p><a href="{% url 'home' %}" class="btn">На главную</a></p>
+</div>
+<div class="card">
+    {% if orders %}
+    <table>
+        <thead>
+            <tr><th>Тип</th><th>Начало</th><th>Окончание</th><th>Итого</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for o in orders %}
+            <tr>
+                <td>{% if o.table %}Столик №{{ o.table.table_number }}{% else %}Вынос{% endif %}</td>
+                <td>{{ o.start_time|date:"d.m.Y H:i" }}</td>
+                <td>{{ o.end_time|date:"d.m.Y H:i" }}</td>
+                <td>{% if o.order_total %}{{ o.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
+                <td><a href="{% url 'client_order_detail' o.pk %}" class="btn">Подробнее</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Заказов пока нет.</p>
+    {% endif %}
+</div>
+{% endblock %}

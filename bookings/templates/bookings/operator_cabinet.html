@@ -35,6 +35,24 @@
         <p>Управление меню на дни недели</p>
         <a href="{% url 'operator_menus' %}" class="btn">Управление меню</a>
     </div>
+
+    <div class="card">
+        <h3>Новости</h3>
+        <p>Публикации для клиентов</p>
+        <a href="{% url 'operator_news_list' %}" class="btn">Новости</a>
+    </div>
+
+    <div class="card">
+        <h3>Акции</h3>
+        <p>Скидки на блюда и комбо</p>
+        <a href="{% url 'operator_promotion_list' %}" class="btn">Акции</a>
+    </div>
+
+    <div class="card">
+        <h3>Жалобы клиентов</h3>
+        <p>Обращения на заведение</p>
+        <a href="{% url 'operator_complaint_list' %}" class="btn">Жалобы</a>
+    </div>
 </div>
 
 <div class="card" style="margin-top: 1.5rem;">

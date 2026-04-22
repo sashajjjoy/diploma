@@ -3,7 +3,19 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
 from django.utils import timezone
-from .models import Table, Dish, Reservation, ReservationDish, UserProfile
+from .models import (
+    Table,
+    Dish,
+    Reservation,
+    ReservationDish,
+    UserProfile,
+    News,
+    VenueComplaint,
+    DishReview,
+    Promotion,
+    PromotionComboItem,
+    ReservationAppliedPromotion,
+)
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
     can_delete = False
@@ -51,6 +63,12 @@ class ReservationDishInline(admin.TabularInline):
     fields = ['dish', 'quantity']
     verbose_name = 'Блюдо'
     verbose_name_plural = 'Блюда в предзаказе'
+
+
+class ReservationAppliedPromotionInline(admin.TabularInline):
+    model = ReservationAppliedPromotion
+    extra = 0
+    raw_id_fields = ['promotion']
 
 
 @admin.register(Table)
@@ -145,7 +163,7 @@ class ReservationAdmin(admin.ModelAdmin):
     readonly_fields = ['created_at', 'total_dishes_info']
     date_hierarchy = 'start_time'
     ordering = ['-start_time']
-    inlines = [ReservationDishInline]
+    inlines = [ReservationAppliedPromotionInline, ReservationDishInline]
 
     fieldsets = (
         ('Информация о бронировании', {
@@ -153,6 +171,14 @@ class ReservationAdmin(admin.ModelAdmin):
         }),
         ('Время бронирования', {
             'fields': ('start_time', 'end_time')
+        }),
+        ('Акция и суммы', {
+            'fields': (
+                'applied_promotion',
+                'promotion_discount_total',
+                'order_subtotal',
+                'order_total',
+            ),
         }),
         ('Предзаказ блюд', {
             'fields': ('total_dishes_info',),
@@ -272,4 +298,40 @@ class ReservationDishAdmin(admin.ModelAdmin):
         """Оптимизация запросов"""
         qs = super().get_queryset(request)
         return qs.select_related('reservation', 'reservation__user', 'reservation__table', 'dish')
+
+
+class PromotionComboItemInline(admin.TabularInline):
+    model = PromotionComboItem
+    extra = 1
+    fk_name = 'promotion'
+
+
+@admin.register(Promotion)
+class PromotionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'kind', 'discount_type', 'discount_value', 'valid_from', 'valid_to', 'is_active')
+    list_filter = ('is_active', 'kind', 'discount_type')
+    inlines = [PromotionComboItemInline]
+    raw_id_fields = ('target_dish',)
+
+
+@admin.register(News)
+class NewsAdmin(admin.ModelAdmin):
+    list_display = ('title', 'is_published', 'published_at', 'updated_at')
+    list_filter = ('is_published',)
+    search_fields = ('title', 'summary')
+
+
+@admin.register(VenueComplaint)
+class VenueComplaintAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'user', 'status', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('subject', 'message', 'user__username')
+    readonly_fields = ('user', 'subject', 'message', 'created_at')
+
+
+@admin.register(DishReview)
+class DishReviewAdmin(admin.ModelAdmin):
+    list_display = ('dish', 'user', 'rating', 'created_at', 'reservation_dish')
+    list_filter = ('rating',)
+    raw_id_fields = ('reservation_dish', 'user', 'dish')
 

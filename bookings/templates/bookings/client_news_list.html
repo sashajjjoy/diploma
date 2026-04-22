@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Новости{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Новости</h2>
+</div>
+{% for n in news_list %}
+<div class="card">
+    <h3><a href="{% url 'client_news_detail' n.pk %}">{{ n.title }}</a></h3>
+    <p style="color:#666;font-size:0.9rem;">{{ n.published_at|date:"d.m.Y H:i" }}</p>
+    {% if n.summary %}<p>{{ n.summary }}</p>{% endif %}
+    <a href="{% url 'client_news_detail' n.pk %}" class="btn">Читать</a>
+</div>
+{% empty %}
+<div class="card"><p>Новостей пока нет.</p></div>
+{% endfor %}
+{% endblock %}

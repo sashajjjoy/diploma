@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ news_item.title }}{% endblock %}
+{% block content %}
+<div class="card">
+    <p><a href="{% url 'client_news_list' %}" class="btn">Все новости</a></p>
+    <h2>{{ news_item.title }}</h2>
+    <p style="color:#666;">{{ news_item.published_at|date:"d.m.Y H:i" }}</p>
+    {% if news_item.summary %}<p class="info">{{ news_item.summary }}</p>{% endif %}
+    <div style="margin-top:1rem;white-space:pre-wrap;">{{ news_item.body }}</div>
+</div>
+{% endblock %}

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load promo_tags %}
 
 {% block title %}Главная страница{% endblock %}
 
@@ -80,23 +81,7 @@
         margin-top: 1.5rem;
         padding-top: 1.5rem;
         border-top: 2px solid #e1e8ed;
-        display: none;
-    }
-    .dishes-section.active {
         display: block;
-    }
-    .dishes-toggle {
-        margin-top: 1rem;
-        background: none;
-        border: none;
-        color: #667eea;
-        cursor: pointer;
-        font-size: 0.95rem;
-        text-decoration: underline;
-        padding: 0;
-    }
-    .dishes-toggle:hover {
-        color: #5568d3;
     }
     .dishes-grid {
         display: grid;
@@ -162,6 +147,90 @@
         border: 2px solid #e1e8ed;
         border-radius: 4px;
         text-align: center;
+    }
+    .promotions-block {
+        margin-top: 1.25rem;
+        padding: 1rem 1.25rem;
+        background: #f8f9ff;
+        border-radius: 8px;
+        border: 1px solid #dde4ff;
+    }
+    .promotions-block h3 { margin-top: 0; }
+    .promotions-block h4 {
+        margin: 1rem 0 0.5rem 0;
+        font-size: 1rem;
+        color: #4a5568;
+    }
+    .combo-promo-card {
+        cursor: pointer;
+        position: relative;
+        display: block;
+    }
+    .combo-promo-card input[type="checkbox"] {
+        position: absolute;
+        top: 0.75rem;
+        left: 0.75rem;
+        z-index: 2;
+    }
+    .combo-promo-card:has(input[type="checkbox"]:checked) {
+        border-color: #667eea;
+        box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.35);
+    }
+    .dish-price-block {
+        margin: 0.5rem 0;
+    }
+    .dish-promo-offer {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.75rem;
+        cursor: pointer;
+        margin-bottom: 0.5rem;
+        padding: 0.35rem 0;
+    }
+    .dish-promo-offer:last-of-type {
+        margin-bottom: 0.25rem;
+    }
+    .dish-promo-offer:has(input:checked) .price-line {
+        opacity: 1;
+    }
+    .dish-promo-offer input[type="checkbox"] {
+        width: 1.1rem;
+        height: 1.1rem;
+        flex-shrink: 0;
+    }
+    .price-line {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .price-old {
+        text-decoration: line-through;
+        color: #95a5a6;
+        font-size: 1rem;
+        font-weight: 500;
+    }
+    .price-new {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #c0392b;
+    }
+    .promo-caption {
+        font-size: 0.85rem;
+        color: #5a6c7d;
+        width: 100%;
+        margin-left: 1.6rem;
+    }
+    .promo-caption.muted {
+        margin-left: 0;
+        margin-top: 0.15rem;
+    }
+    .combo-composition {
+        font-size: 0.85rem;
+        color: #5a6c7d;
+        margin: 0.5rem 0 0 0;
+        padding-left: 1.1rem;
     }
 </style>
 {% endblock %}
@@ -271,11 +340,6 @@
                             <input type="hidden" name="duration" id="selected_duration" value="25" required>
                         </div>
                         
-                        <!-- Кнопка для показа секции предзаказа (только для бронирования столика) -->
-                        <button type="button" class="dishes-toggle" id="dishesToggleBtn" onclick="toggleDishesSection()">
-                            Предзаказать блюда
-                        </button>
-                        
                         <!-- Кнопка "Забронировать" (только для бронирования столика) -->
                         <button type="submit" class="btn btn-success" id="submitReservationBtn" style="margin-top: 1rem;">
                             Забронировать
@@ -303,14 +367,51 @@
                             Предзаказать
                         </button>
                     </div>
+
+                    {% if combo_promotions %}
+                    <div class="promotions-block">
+                        <h3>Акции — комбо</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin: 0 0 0.75rem 0;">Отметьте набор: он сразу входит в заказ (скидка один раз на комбо). Карточка недоступна (как в обычном меню), если хотя бы одна позиция комбо не входит в меню на выбранную дату. Дополнительные порции тех же блюд — в обычном меню по полной цене.</p>
+                        <div class="dishes-grid">
+                            {% for p in combo_promotions %}
+                            <label class="dish-card combo-promo-card" data-combo-dish-ids="{% for ci in p.combo_items.all %}{{ ci.dish_id }}{% if not forloop.last %},{% endif %}{% endfor %}">
+                                <input type="checkbox" name="promotion_id" value="{{ p.pk }}">
+                                {% for ci in p.combo_items.all %}
+                                    {% if forloop.first %}
+                                        {% if ci.dish.image %}
+                                            <img src="{{ ci.dish.image.url }}" alt="">
+                                        {% else %}
+                                            <div style="width: 100%; height: 150px; background: #eef1f8; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #8899aa; margin-bottom: 0.75rem;">Комбо</div>
+                                        {% endif %}
+                                    {% endif %}
+                                {% empty %}
+                                    <div style="width: 100%; height: 150px; background: #eef1f8; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #8899aa; margin-bottom: 0.75rem;">Комбо</div>
+                                {% endfor %}
+                                <h4 style="padding-left: 1.5rem;">{{ p.name }}</h4>
+                                <div class="dish-price" style="padding-left: 1.5rem;">
+                                    {% if p.discount_type == 'percent' %}Скидка {{ p.discount_value }}%{% else %}Скидка {{ p.discount_value }} ₽{% endif %} на один набор (доп. порции — без скидки)
+                                </div>
+                                {% if p.description %}<p class="dish-description" style="padding-left: 1.5rem;">{{ p.description|truncatewords:25 }}</p>{% endif %}
+                                <ul class="combo-composition">
+                                    {% for ci in p.combo_items.all %}
+                                    <li>{{ ci.dish.name }} × {{ ci.min_quantity }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                     
                     <!-- Секция предзаказа блюд -->
                     <div id="dishesSection" class="dishes-section">
-                        <h3 style="margin-bottom: 1rem;">Предзаказ блюд</h3>
+                        <h3 style="margin-bottom: 1rem;">Обычное меню</h3>
+                        <p style="font-size: 0.9rem; color: #666; margin-bottom: 1rem;">Если у блюда есть акция — рядом зачёркнута обычная цена и красным цена со скидкой; отметьте чекбокс, чтобы одна порция пошла по акции. Дополнительные порции в поле «Количество» — по обычной цене. Состав отмеченных комбо добавляется отдельным блоком выше.</p>
                         {% if all_dishes %}
-                        <div class="dishes-grid">
+                        <div class="dishes-grid regular-dishes-grid">
                             {% for dish in all_dishes %}
-                            <div class="dish-card" data-dish-id="{{ dish.pk }}">
+                            {% with proms=single_promos_by_dish|lookup:dish.pk %}
+                            <div class="dish-card regular-dish-card" data-dish-id="{{ dish.pk }}">
                                 {% if dish.image %}
                                     <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
                                 {% else %}
@@ -319,7 +420,27 @@
                                     </div>
                                 {% endif %}
                                 <h4>{{ dish.name }}</h4>
-                                <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
+                                <div class="dish-price-block">
+                                    {% if proms %}
+                                        {% for item in proms %}
+                                        <label class="dish-promo-offer">
+                                            <input type="checkbox" name="promotion_id" value="{{ item.promo.pk }}">
+                                            <span class="price-line">
+                                                <span class="price-old">{{ dish.price|floatformat:2 }} ₽</span>
+                                                <span class="price-new">{{ item.price_new|floatformat:2 }} ₽</span>
+                                            </span>
+                                            {% if proms|length > 1 %}
+                                            <span class="promo-caption">{{ item.promo.name }}</span>
+                                            {% endif %}
+                                        </label>
+                                        {% endfor %}
+                                        {% if proms|length == 1 %}
+                                        <p class="promo-caption muted">{{ proms.0.promo.name }}</p>
+                                        {% endif %}
+                                    {% else %}
+                                        <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
+                                    {% endif %}
+                                </div>
                                 <div class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:15 }}</div>
                                 <div class="dish-quantity">
                                     <label for="dish_quantity_{{ dish.pk }}" style="font-size: 0.9rem;">Количество:</label>
@@ -331,6 +452,7 @@
                                            max="{{ dish.available_quantity }}">
                                 </div>
                             </div>
+                            {% endwith %}
                             {% endfor %}
                         </div>
                         {% else %}
@@ -351,6 +473,7 @@
                             <th>Дата и время начала</th>
                             <th>Дата и время окончания</th>
                             <th>Персон</th>
+                            <th>Итого</th>
                             <th>Статус</th>
                             <th>Действия</th>
                         </tr>
@@ -368,6 +491,7 @@
                             <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
                             <td>{{ reservation.end_time|date:"d.m.Y H:i" }}</td>
                             <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}-{% endif %}</td>
+                            <td>{% if reservation.order_total %}{{ reservation.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
                             <td>
                                 {% now "Y-m-d H:i:s" as now_str %}
                                 {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
@@ -380,6 +504,7 @@
                             </td>
                             <td>
                                 <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Подробнее</a>
+                                <a href="{% url 'client_order_detail' reservation.pk %}" class="btn">Заказ и отзывы</a>
                                 {% if reservation.can_modify_or_cancel %}
                                     <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
                                 {% endif %}
@@ -419,13 +544,15 @@
             <div style="margin-top: 30px;">
                 <a href="{% url 'operator_cabinet' %}" class="btn">Перейти в кабинет оператора →</a>
             </div>
-        {% elif user.is_superuser %}
+        {% elif user.is_superuser or user|get_user_role == 'admin' %}
             <div class="info">
                 <h3>Добро пожаловать, администратор!</h3>
-                <p>У вас есть полный доступ к системе управления.</p>
+                <p>Обзор системы — в админ-кабинете; детальное редактирование — в Django Admin и разделах оператора.</p>
             </div>
             <div style="margin-top: 30px;">
-                <a href="/admin/" class="btn">Перейти в админ-панель →</a>
+                <a href="{% url 'admin_cabinet' %}" class="btn">Админ-кабинет →</a>
+                <a href="{% url 'operator_cabinet' %}" class="btn" style="margin-left: 8px;">Кабинет оператора →</a>
+                <a href="/admin/" class="btn" style="margin-left: 8px;">Django Admin →</a>
             </div>
         {% endif %}
     {% endif %}
@@ -573,19 +700,6 @@
         }
     }
     
-    function toggleDishesSection() {
-        const section = document.getElementById('dishesSection');
-        const button = document.querySelector('.dishes-toggle');
-        if (section && button) {
-            section.classList.toggle('active');
-            if (section.classList.contains('active')) {
-                button.textContent = 'Скрыть предзаказ блюд';
-            } else {
-                button.textContent = 'Предзаказать блюда';
-            }
-        }
-    }
-    
     function selectTakeoutDate(dateKey) {
         // Убираем активный класс со всех кнопок
         document.querySelectorAll('.date-btn-takeout').forEach(btn => {
@@ -602,25 +716,44 @@
     
     function updateDishAvailability(dateKey) {
         const availableDishIds = dishesByDate[dateKey] || [];
-        
-        // Обновляем все карточки блюд
-        document.querySelectorAll('.dish-card').forEach(card => {
-            const dishId = parseInt(card.getAttribute('data-dish-id'));
+
+        document.querySelectorAll('#dishesSection .regular-dish-card').forEach(card => {
+            const dishId = parseInt(card.getAttribute('data-dish-id'), 10);
             const input = card.querySelector('input[type="number"]');
-            
+            const promoChecks = card.querySelectorAll('.dish-promo-offer input[type="checkbox"]');
+
             if (availableDishIds.includes(dishId)) {
-                // Блюдо доступно
                 card.classList.remove('unavailable');
                 if (input) {
                     input.disabled = false;
-                    input.value = Math.max(0, parseInt(input.value) || 0);
+                    input.value = Math.max(0, parseInt(input.value, 10) || 0);
                 }
+                promoChecks.forEach(cb => { cb.disabled = false; });
             } else {
-                // Блюдо недоступно
                 card.classList.add('unavailable');
                 if (input) {
                     input.disabled = true;
                     input.value = 0;
+                }
+                promoChecks.forEach(cb => { cb.disabled = true; cb.checked = false; });
+            }
+        });
+
+        document.querySelectorAll('.promotions-block .combo-promo-card').forEach(card => {
+            const raw = (card.getAttribute('data-combo-dish-ids') || '').trim();
+            const ids = raw
+                ? raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !Number.isNaN(n))
+                : [];
+            const allInMenu = ids.length > 0 && ids.every(id => availableDishIds.includes(id));
+            const cb = card.querySelector('input[type="checkbox"]');
+            if (allInMenu) {
+                card.classList.remove('unavailable');
+                if (cb) cb.disabled = false;
+            } else {
+                card.classList.add('unavailable');
+                if (cb) {
+                    cb.disabled = true;
+                    cb.checked = false;
                 }
             }
         });
@@ -630,57 +763,33 @@
         const checkbox = document.getElementById('takeout_checkbox');
         const tableBlock = document.getElementById('tableReservationBlock');
         const takeoutBlock = document.getElementById('takeoutBlock');
-        const dishesToggleBtn = document.getElementById('dishesToggleBtn');
-        const dishesSection = document.getElementById('dishesSection');
         const submitReservationBtn = document.getElementById('submitReservationBtn');
         const submitTakeoutBtn = document.getElementById('submitTakeoutBtn');
         
         if (checkbox.checked) {
-            // Заказ на вынос выбран
-            // Скрываем блок бронирования столика
             if (tableBlock) tableBlock.style.display = 'none';
-            // Показываем блок для заказа на вынос
             if (takeoutBlock) takeoutBlock.style.display = 'block';
-            // Скрываем кнопку предзаказа (она не нужна для takeout)
-            if (dishesToggleBtn) dishesToggleBtn.style.display = 'none';
-            // Показываем секцию блюд (всегда видна для takeout)
-            if (dishesSection) {
-                dishesSection.classList.add('active');
-                dishesSection.style.display = 'block';
-            }
-            // Скрываем кнопку "Забронировать"
             if (submitReservationBtn) submitReservationBtn.style.display = 'none';
-            // Показываем кнопку "Предзаказать"
             if (submitTakeoutBtn) submitTakeoutBtn.style.display = 'block';
+            const dk = document.getElementById('selected_takeout_date')?.value;
+            if (dk) updateDishAvailability(dk);
         } else {
-            // Бронирование столика
-            // Показываем блок бронирования столика
             if (tableBlock) tableBlock.style.display = 'block';
-            // Скрываем блок для заказа на вынос
             if (takeoutBlock) takeoutBlock.style.display = 'none';
-            // Показываем кнопку предзаказа
-            if (dishesToggleBtn) dishesToggleBtn.style.display = 'block';
-            // Секция блюд изначально скрыта
-            if (dishesSection) {
-                dishesSection.classList.remove('active');
-                dishesSection.style.display = 'none';
-            }
-            // Показываем кнопку "Забронировать"
             if (submitReservationBtn) submitReservationBtn.style.display = 'block';
-            // Скрываем кнопку "Предзаказать"
             if (submitTakeoutBtn) submitTakeoutBtn.style.display = 'none';
+            const dk = document.getElementById('selected_date')?.value;
+            if (dk) updateDishAvailability(dk);
         }
     }
     
     // Инициализация при загрузке страницы
     document.addEventListener('DOMContentLoaded', function() {
         updateAvailableSlots();
-        // Обновляем доступность блюд для выбранной даты (для бронирования столика)
         const selectedDate = document.getElementById('selected_date');
         if (selectedDate && selectedDate.value) {
             updateDishAvailability(selectedDate.value);
         }
-        // Обновляем доступность блюд для выбранной даты (для заказа на вынос)
         const selectedTakeoutDate = document.getElementById('selected_takeout_date');
         if (selectedTakeoutDate && selectedTakeoutDate.value) {
             updateDishAvailability(selectedTakeoutDate.value);

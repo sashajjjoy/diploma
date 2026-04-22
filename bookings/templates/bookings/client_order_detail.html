@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Заказ №{{ reservation.pk }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Заказ №{{ reservation.pk }}</h2>
+    <p>
+        {% if reservation.table %}Столик №{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}<br>
+        {{ reservation.start_time|date:"d.m.Y H:i" }} — {{ reservation.end_time|date:"d.m.Y H:i" }}
+    </p>
+    {% if reservation.order_subtotal %}
+    <p><strong>Сумма позиций:</strong> {{ reservation.order_subtotal|floatformat:2 }} ₽</p>
+    {% if reservation.promotion_discount_total %}
+    <p><strong>Скидка по акциям:</strong> −{{ reservation.promotion_discount_total|floatformat:2 }} ₽</p>
+    {% endif %}
+    {% if reservation.applied_promotion_links.all %}
+    <ul style="margin: 0.25rem 0 0.75rem 1.2rem;">
+        {% for row in reservation.applied_promotion_links.all %}
+        <li>{{ row.promotion.name }}: −{{ row.discount_amount|floatformat:2 }} ₽</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <p><strong>Итого к оплате:</strong> {{ reservation.order_total|floatformat:2 }} ₽</p>
+    {% elif reservation.applied_promotion %}
+    <p><strong>Акция:</strong> {{ reservation.applied_promotion.name }}
+        {% if reservation.promotion_discount_total %} (скидка {{ reservation.promotion_discount_total }} ₽){% endif %}
+    </p>
+    {% endif %}
+    <p>{% if completed %}<span class="status-badge status-completed">Завершён</span> — можно оставить отзыв по блюдам.{% else %}Заказ ещё не завершён по времени.{% endif %}</p>
+    <a href="{% url 'client_order_list' %}" class="btn">К списку заказов</a>
+    <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Карточка бронирования</a>
+</div>
+<div class="card">
+    <h3>Позиции</h3>
+    <table>
+        <thead>
+            <tr><th>Блюдо</th><th>Кол-во</th><th></th></tr>
+        </thead>
+        <tbody>
+            {% for item in line_info %}
+            <tr>
+                <td>{{ item.line.dish.name }}</td>
+                <td>{{ item.line.quantity }}</td>
+                <td>
+                    {% if item.can_review %}
+                    <a href="{% url 'client_dish_review_create' reservation.pk item.line.pk %}" class="btn btn-success">Оставить отзыв</a>
+                    {% elif completed %}
+                    <span style="color:#888;">Отзыв уже есть</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

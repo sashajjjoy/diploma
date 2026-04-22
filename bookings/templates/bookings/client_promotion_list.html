@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Акции{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Действующие акции</h2>
+    <p>Акцию можно выбрать при оформлении бронирования или заказа на вынос на главной странице. Здесь показаны только предложения, по которым сейчас хватает блюд на складе.</p>
+    <a href="{% url 'home' %}" class="btn">На главную</a>
+</div>
+{% for p in promotions %}
+<div class="card">
+    <h3>{{ p.name }}</h3>
+    <p>{% if p.discount_type == 'percent' %}Скидка {{ p.discount_value }}%{% else %}Скидка {{ p.discount_value }} ₽{% endif %}
+        {% if p.kind == 'single_dish' and p.target_dish %} на блюдо «{{ p.target_dish.name }}»{% elif p.kind == 'combo' %} на комбо-набор{% endif %}
+    </p>
+    {% if p.description %}<p>{{ p.description|linebreaksbr }}</p>{% endif %}
+    <p style="font-size:0.9rem;color:#666;">С {{ p.valid_from|date:"d.m.Y H:i" }} по {{ p.valid_to|date:"d.m.Y H:i" }}</p>
+</div>
+{% empty %}
+<div class="card"><p>Сейчас нет активных акций.</p></div>
+{% endfor %}
+{% endblock %}

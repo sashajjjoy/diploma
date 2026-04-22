@@ -28,6 +28,25 @@
                 <span class="status-badge status-planned">Запланировано</span>
             {% endif %}
         </p>
+        {% if reservation.order_subtotal %}
+            <p><strong>Сумма позиций:</strong> {{ reservation.order_subtotal|floatformat:2 }} ₽</p>
+            {% if reservation.promotion_discount_total %}
+            <p><strong>Скидка по акциям:</strong> −{{ reservation.promotion_discount_total|floatformat:2 }} ₽</p>
+            {% endif %}
+            {% if reservation.applied_promotion_links.all %}
+            <ul style="margin: 0.35rem 0 0.75rem 1.2rem;">
+                {% for row in reservation.applied_promotion_links.all %}
+                <li>{{ row.promotion.name }}: −{{ row.discount_amount|floatformat:2 }} ₽</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+            <p><strong>Итого к оплате:</strong> {{ reservation.order_total|floatformat:2 }} ₽</p>
+        {% elif reservation.applied_promotion %}
+            <p><strong>Акция:</strong> {{ reservation.applied_promotion.name }}
+            {% if reservation.promotion_discount_total %} (скидка {{ reservation.promotion_discount_total }} ₽){% endif %}
+            </p>
+        {% endif %}
+        <p><a href="{% url 'client_order_detail' reservation.pk %}" class="btn">История заказа и отзывы</a></p>
         
         {% if can_modify %}
             <p style="margin-top: 1rem;">

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Отзыв: {{ line.dish.name }}{% endblock %}
+{% block content %}
+<div class="card">
+    <h2>Отзыв: {{ line.dish.name }}</h2>
+    <p>Заказ №{{ reservation.pk }}</p>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Оценка (1–5)</label>
+            <select name="rating" required style="padding:0.5rem;">
+                <option value="">—</option>
+                {% for s in "12345" %}
+                <option value="{{ s }}">{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Комментарий</label>
+            <textarea name="comment" rows="4" style="width:100%;padding:0.5rem;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-success">Отправить</button>
+        <a href="{% url 'client_order_detail' reservation.pk %}" class="btn">Отмена</a>
+    </form>
+</div>
+{% endblock %}
