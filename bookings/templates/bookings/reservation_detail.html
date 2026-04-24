@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% load tz %}
 
-{% block title %}Бронирование №{{ reservation.pk }}{% endblock %}
+{% block title %}Бронирование №{{ reservation.public_id|default:reservation.pk }}{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2>Бронирование №{{ reservation.pk }}</h2>
+    <h2>Бронирование №{{ reservation.public_id|default:reservation.pk }}</h2>
     
     <div style="margin: 1.5rem 0;">
         {% if reservation.table %}
@@ -46,12 +46,12 @@
             {% if reservation.promotion_discount_total %} (скидка {{ reservation.promotion_discount_total }} ₽){% endif %}
             </p>
         {% endif %}
-        <p><a href="{% url 'client_order_detail' reservation.pk %}" class="btn">История заказа и отзывы</a></p>
+        <p><a href="{% url 'client_order_detail' reservation.public_id|default:reservation.pk %}" class="btn">История заказа и отзывы</a></p>
         
         {% if can_modify %}
             <p style="margin-top: 1rem;">
-                <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
-                <a href="{% url 'reservation_delete' reservation.pk %}" class="btn btn-danger">Отменить бронирование</a>
+                <a href="{% url 'reservation_edit' reservation.public_id|default:reservation.pk %}" class="btn">Изменить</a>
+                <a href="{% url 'reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger">Отменить бронирование</a>
             </p>
         {% else %}
             <p style="color: #dc3545; margin-top: 1rem;">
@@ -88,4 +88,3 @@
 
 <a href="{% url 'home' %}" class="btn">Вернуться на главную</a>
 {% endblock %}
-

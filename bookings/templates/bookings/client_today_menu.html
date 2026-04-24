@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Меню на сегодня{% endblock %}
+
+{% block extra_css %}
+<style>
+    .menu-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.25rem;
+        margin-top: 1.25rem;
+    }
+    .menu-card {
+        border: 1px solid #e1e8ed;
+        border-radius: 12px;
+        padding: 1rem;
+        background: #fff;
+    }
+    .menu-card img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+    }
+    .menu-card h3 {
+        margin-bottom: 0.4rem;
+    }
+    .menu-price {
+        color: #667eea;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Меню на сегодня</h2>
+    <p style="color: #5a6c7d;">На {{ today_menu_date|date:"d.m.Y" }}. У каждого блюда можно открыть отзывы.</p>
+
+    {% if today_menu_dishes %}
+    <div class="menu-grid">
+        {% for dish in today_menu_dishes %}
+        <div class="menu-card">
+            {% if dish.image %}
+                <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
+            {% else %}
+                <div style="height: 180px; border-radius: 8px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #999; margin-bottom: 0.75rem;">Нет изображения</div>
+            {% endif %}
+            <h3>{{ dish.name }}</h3>
+            <div class="menu-price">{{ dish.price|floatformat:2 }} ₽</div>
+            <p style="color: #6b7b8c; margin-bottom: 0.75rem;">{{ dish.description|default:"Без описания"|truncatewords:18 }}</p>
+            <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn">Отзывы</a>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>На сегодня блюда в меню пока не назначены.</p>
+    {% endif %}
+</div>
+{% endblock %}

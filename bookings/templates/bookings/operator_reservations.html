@@ -73,8 +73,8 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{% url 'operator_reservation_detail' reservation.pk %}" class="btn">Просмотр</a>
-                        <a href="{% url 'operator_reservation_delete' reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить</a>
+                        <a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Просмотр</a>
+                        <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -101,7 +101,6 @@
     {% endif %}
 </div>
 {% endblock %}
-
 
 
 

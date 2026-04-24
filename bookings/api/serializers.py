@@ -1,23 +1,29 @@
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from bookings.models import (
+    Booking,
+    CustomerOrder,
     Dish,
-    DishReview,
     News,
+    OrderAppliedPromotion,
+    OrderItem,
+    OrderItemReview,
     Promotion,
     PromotionComboItem,
-    Reservation,
-    ReservationDish,
     VenueComplaint,
 )
-from bookings.services.menu import get_menu_dishes_for_date
-from bookings.services.promotions import available_quantity_net, get_orderable_promotions
-from bookings.services.reservations import create_dish_review, create_or_update_reservation_for_client
+from bookings.services.promotions import available_quantity_net
+from bookings.services.reservations import (
+    create_dish_review,
+    create_or_update_reservation_for_client,
+    get_public_id,
+)
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -142,31 +148,39 @@ class MenuDaySerializer(serializers.Serializer):
     dishes = serializers.ListField(child=serializers.DictField())
 
 
-class ReservationDishSerializer(serializers.ModelSerializer):
-    dish_id = serializers.IntegerField(source="dish.id", read_only=True)
-    dish_name = serializers.CharField(source="dish.name", read_only=True)
-    unit_price = serializers.DecimalField(source="dish.price", max_digits=10, decimal_places=2, read_only=True)
-    line_total = serializers.SerializerMethodField()
+class OrderItemSerializer(serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
+    dish_id = serializers.IntegerField(read_only=True)
+    dish_name = serializers.CharField(source="dish_name_snapshot", read_only=True)
+    unit_price = serializers.DecimalField(source="unit_price_snapshot", max_digits=10, decimal_places=2, read_only=True)
+    line_total = serializers.DecimalField(source="line_total_snapshot", max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
-        model = ReservationDish
+        model = OrderItem
         fields = ("id", "dish_id", "dish_name", "quantity", "unit_price", "line_total")
 
-    def get_line_total(self, obj):
-        return obj.dish.price * obj.quantity
+    def get_id(self, obj):
+        return obj.public_id or obj.pk
 
 
-class AppliedPromotionSerializer(serializers.Serializer):
+class AppliedPromotionSerializer(serializers.ModelSerializer):
     id = serializers.IntegerField(source="promotion.id")
     name = serializers.CharField(source="promotion.name")
-    discount_amount = serializers.DecimalField(max_digits=10, decimal_places=2)
+    discount_amount = serializers.DecimalField(source="discount_amount_snapshot", max_digits=10, decimal_places=2)
+
+    class Meta:
+        model = OrderAppliedPromotion
+        fields = ("id", "name", "discount_amount")
 
 
 class ReservationListSerializer(serializers.ModelSerializer):
-    dishes = ReservationDishSerializer(many=True, read_only=True)
+    id = serializers.SerializerMethodField()
+    table_id = serializers.IntegerField(source="table.id", read_only=True)
+    order_total = serializers.DecimalField(source="order.total_amount", max_digits=10, decimal_places=2, read_only=True)
+    dishes = OrderItemSerializer(source="order.items", many=True, read_only=True)
 
     class Meta:
-        model = Reservation
+        model = Booking
         fields = (
             "id",
             "table_id",
@@ -177,15 +191,22 @@ class ReservationListSerializer(serializers.ModelSerializer):
             "dishes",
         )
 
+    def get_id(self, obj):
+        return get_public_id(obj)
+
 
 class ReservationDetailSerializer(serializers.ModelSerializer):
-    dishes = ReservationDishSerializer(many=True, read_only=True)
-    applied_promotions = AppliedPromotionSerializer(
-        source="applied_promotion_links", many=True, read_only=True
-    )
+    id = serializers.SerializerMethodField()
+    table_id = serializers.IntegerField(source="table.id", read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    order_subtotal = serializers.DecimalField(source="order.subtotal_amount", max_digits=10, decimal_places=2, read_only=True)
+    promotion_discount_total = serializers.DecimalField(source="order.discount_total", max_digits=10, decimal_places=2, read_only=True)
+    order_total = serializers.DecimalField(source="order.total_amount", max_digits=10, decimal_places=2, read_only=True)
+    applied_promotions = AppliedPromotionSerializer(source="order.applied_promotions", many=True, read_only=True)
+    dishes = OrderItemSerializer(source="order.items", many=True, read_only=True)
 
     class Meta:
-        model = Reservation
+        model = Booking
         fields = (
             "id",
             "table_id",
@@ -199,6 +220,67 @@ class ReservationDetailSerializer(serializers.ModelSerializer):
             "applied_promotions",
             "dishes",
         )
+
+    def get_id(self, obj):
+        return get_public_id(obj)
+
+
+class OrderListSerializer(serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
+    table_id = serializers.IntegerField(source="booking.table.id", read_only=True)
+    guests_count = serializers.IntegerField(source="booking.guests_count", read_only=True)
+    start_time = serializers.DateTimeField(source="booking.start_time", read_only=True)
+    end_time = serializers.DateTimeField(source="booking.end_time", read_only=True)
+    order_total = serializers.DecimalField(source="total_amount", max_digits=10, decimal_places=2, read_only=True)
+    dishes = OrderItemSerializer(source="items", many=True, read_only=True)
+
+    class Meta:
+        model = CustomerOrder
+        fields = (
+            "id",
+            "table_id",
+            "guests_count",
+            "start_time",
+            "end_time",
+            "order_total",
+            "dishes",
+        )
+
+    def get_id(self, obj):
+        return get_public_id(obj)
+
+
+class OrderDetailSerializer(serializers.ModelSerializer):
+    id = serializers.SerializerMethodField()
+    table_id = serializers.IntegerField(source="booking.table.id", read_only=True)
+    guests_count = serializers.IntegerField(source="booking.guests_count", read_only=True)
+    start_time = serializers.DateTimeField(source="booking.start_time", read_only=True)
+    end_time = serializers.DateTimeField(source="booking.end_time", read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    order_subtotal = serializers.DecimalField(source="subtotal_amount", max_digits=10, decimal_places=2, read_only=True)
+    promotion_discount_total = serializers.DecimalField(source="discount_total", max_digits=10, decimal_places=2, read_only=True)
+    order_total = serializers.DecimalField(source="total_amount", max_digits=10, decimal_places=2, read_only=True)
+    applied_promotions = AppliedPromotionSerializer(many=True, read_only=True)
+    dishes = OrderItemSerializer(source="items", many=True, read_only=True)
+
+    class Meta:
+        model = CustomerOrder
+        fields = (
+            "id",
+            "table_id",
+            "guests_count",
+            "start_time",
+            "end_time",
+            "created_at",
+            "order_subtotal",
+            "promotion_discount_total",
+            "order_total",
+            "applied_promotions",
+            "dishes",
+        )
+
+    def get_id(self, obj):
+        return get_public_id(obj)
 
 
 class ReservationDishInputSerializer(serializers.Serializer):
@@ -219,8 +301,14 @@ class ReservationCreateUpdateSerializer(serializers.Serializer):
     )
     dishes = ReservationDishInputSerializer(many=True, required=False)
 
-    def validate(self, attrs):
+    def _legacy_instance(self):
         instance = getattr(self, "instance", None)
+        if instance is None:
+            return None
+        return instance
+
+    def validate(self, attrs):
+        instance = self._legacy_instance()
         existing_takeout = bool(instance and instance.table_id is None)
         takeout = attrs.get("takeout", existing_takeout)
         attrs["takeout"] = takeout
@@ -250,7 +338,7 @@ class ReservationCreateUpdateSerializer(serializers.Serializer):
 
     def _service_payload(self):
         attrs = self.validated_data
-        instance = getattr(self, "instance", None)
+        instance = self._legacy_instance()
         payload = {
             "takeout": attrs.get("takeout", False),
             "date": attrs["date"],
@@ -296,7 +384,15 @@ class ReservationCreateUpdateSerializer(serializers.Serializer):
 class ComplaintSerializer(serializers.ModelSerializer):
     class Meta:
         model = VenueComplaint
-        fields = ("id", "subject", "message", "status", "created_at")
+        fields = (
+            "id",
+            "subject",
+            "message",
+            "status",
+            "created_at",
+            "related_booking_id",
+            "related_order_id",
+        )
         read_only_fields = ("id", "status", "created_at")
 
     def create(self, validated_data):
@@ -310,22 +406,24 @@ class DishReviewCreateSerializer(serializers.Serializer):
     comment = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):
-        reservation = self.context["reservation"]
+        order = self.context["order"]
         try:
-            reservation_dish = reservation.dishes.select_related("dish").get(pk=attrs["reservation_dish"])
-        except ReservationDish.DoesNotExist:
+            order_item = order.items.select_related("dish").get(
+                Q(public_id=attrs["reservation_dish"]) | Q(pk=attrs["reservation_dish"])
+            )
+        except OrderItem.DoesNotExist:
             raise serializers.ValidationError({"reservation_dish": ["Order line not found."]})
-        if reservation_dish.dish_id != attrs["dish"]:
+        if order_item.dish_id != attrs["dish"]:
             raise serializers.ValidationError({"dish": ["Dish does not match the order line."]})
-        attrs["reservation_dish_obj"] = reservation_dish
+        attrs["order_item_obj"] = order_item
         return attrs
 
     def create(self, validated_data):
         try:
             return create_dish_review(
                 user=self.context["request"].user,
-                reservation=self.context["reservation"],
-                reservation_dish=validated_data["reservation_dish_obj"],
+                order=self.context["order"],
+                order_item=validated_data["order_item_obj"],
                 rating=validated_data["rating"],
                 comment=validated_data.get("comment", ""),
             )
@@ -334,6 +432,12 @@ class DishReviewCreateSerializer(serializers.Serializer):
 
 
 class DishReviewSerializer(serializers.ModelSerializer):
+    reservation_dish_id = serializers.SerializerMethodField()
+    dish_id = serializers.IntegerField(source="order_item.dish_id", read_only=True)
+
     class Meta:
-        model = DishReview
+        model = OrderItemReview
         fields = ("id", "reservation_dish_id", "dish_id", "rating", "comment", "created_at")
+
+    def get_reservation_dish_id(self, obj):
+        return obj.order_item.public_id or obj.order_item_id

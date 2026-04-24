@@ -19,8 +19,7 @@
     <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger">Да, удалить</button>
-        <a href="{% url 'operator_reservation_detail' reservation.pk %}" class="btn">Отмена</a>
+    <a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Отмена</a>
     </form>
 </div>
 {% endblock %}
-

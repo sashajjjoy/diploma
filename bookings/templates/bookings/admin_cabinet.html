@@ -122,7 +122,7 @@
                     <td>{{ r.start_time|date:"d.m.Y H:i" }}</td>
                     <td>{% if r.table %}Стол №{{ r.table.table_number }}{% else %}Вынос{% endif %}</td>
                     <td>{{ r.user.get_full_name|default:r.user.username }}</td>
-                    <td><a href="{% url 'operator_reservation_detail' r.pk %}" class="btn">Открыть</a></td>
+                    <td><a href="{% url 'operator_reservation_detail' r.public_id|default:r.pk %}" class="btn">Открыть</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -178,6 +178,6 @@
     {% else %}
     <p>Отзывов пока нет.</p>
     {% endif %}
-    <p style="margin-top: 1rem;"><a href="/admin/bookings/dishreview/" class="btn btn-secondary-outline">Все отзывы в Django Admin</a></p>
+    <p style="margin-top: 1rem;"><a href="/admin/bookings/orderitemreview/" class="btn btn-secondary-outline">Все отзывы в Django Admin</a></p>
 </div>
 {% endblock %}

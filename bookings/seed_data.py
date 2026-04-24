@@ -1,7 +1,3 @@
-"""
-Очистка данных (кроме Table и Dish) и заполнение демо-данными.
-Минимум записей в контентных таблицах — MIN_ROWS (типичное требование курсовых).
-"""
 from __future__ import annotations
 
 import math
@@ -14,16 +10,17 @@ from django.db import transaction
 from django.utils import timezone
 
 from bookings.models import (
+    Booking,
+    CustomerOrder,
     Dish,
-    DishReview,
     MenuOverride,
     MenuOverrideItem,
     News,
+    OrderAppliedPromotion,
+    OrderItem,
+    OrderItemReview,
     Promotion,
     PromotionComboItem,
-    Reservation,
-    ReservationAppliedPromotion,
-    ReservationDish,
     Table,
     UserProfile,
     VenueComplaint,
@@ -33,17 +30,17 @@ from bookings.models import (
 
 User = get_user_model()
 
-# Не меньше стольких строк там, где это осмысленно (новости, жалобы, брони и т.д.)
 MIN_ROWS = 10
 
 
 def clear_all_except_table_dish() -> None:
     Session.objects.all().delete()
-    DishReview.objects.all().delete()
-    ReservationAppliedPromotion.objects.all().delete()
-    ReservationDish.objects.all().delete()
+    OrderItemReview.objects.all().delete()
+    OrderAppliedPromotion.objects.all().delete()
+    OrderItem.objects.all().delete()
+    CustomerOrder.objects.all().delete()
+    Booking.objects.all().delete()
     PromotionComboItem.objects.all().delete()
-    Reservation.objects.all().delete()
     Promotion.objects.all().delete()
     VenueComplaint.objects.all().delete()
     News.objects.all().delete()
@@ -59,289 +56,375 @@ def _ensure_tables_and_dishes():
     tables = list(Table.objects.order_by("id"))
     dishes = list(Dish.objects.order_by("id"))
     if not tables:
-        raise RuntimeError("В базе нет столиков (Table). Добавьте записи или не очищайте эту таблицу.")
+        raise RuntimeError("Table data is required before reseeding.")
     if not dishes:
-        raise RuntimeError("В базе нет блюд (Dish). Добавьте записи или не очищайте эту таблицу.")
+        raise RuntimeError("Dish data is required before reseeding.")
     return tables, dishes
 
 
 def _make_users():
     users = []
     for i in range(MIN_ROWS):
-        u = User.objects.create_user(
+        user = User.objects.create_user(
             username=f"client{i + 1}",
             email=f"client{i + 1}@example.com",
             password="client123",
-            first_name=f"Клиент{i + 1}",
-            last_name="Тестов",
+            first_name=f"Client{i + 1}",
+            last_name="Test",
         )
-        UserProfile.objects.create(user=u, role="client", phone=f"+7900123456{i % 10}")
-        users.append(u)
+        UserProfile.objects.create(user=user, role="client", phone=f"+7900123456{i % 10}")
+        users.append(user)
 
-    op = User.objects.create_user(
+    operator = User.objects.create_user(
         username="operator1",
         email="operator1@example.com",
         password="operator123",
-        first_name="Пётр",
-        last_name="Операторов",
+        first_name="Operator",
+        last_name="Demo",
     )
-    UserProfile.objects.create(user=op, role="operator")
+    UserProfile.objects.create(user=operator, role="operator")
 
-    ad = User.objects.create_user(
+    admin = User.objects.create_user(
         username="admin",
         email="admin@example.com",
         password="admin123",
-        first_name="Админ",
-        last_name="",
+        first_name="Admin",
         is_staff=True,
         is_superuser=True,
     )
-    UserProfile.objects.create(user=ad, role="admin")
-    return users, op, ad
+    UserProfile.objects.create(user=admin, role="admin")
+    return users, operator, admin
 
 
-def _reservation_slot_past(index: int, tables: list[Table]):
-    """Уникальные слоты без пересечений по столику."""
-    n = len(tables)
-    day_offset = index // n + 1
-    table_idx = index % n
+def _booking_slot_past(index: int, tables: list[Table]):
+    table_count = len(tables)
+    day_offset = index // table_count + 1
+    table_idx = index % table_count
     hour = 9 + (index % 6) * 2
-    d = timezone.localdate() - timedelta(days=day_offset)
-    st = timezone.make_aware(datetime.combine(d, time(hour, 0)))
-    et = st + timedelta(hours=1, minutes=30)
-    t = tables[table_idx]
-    guests = min(2, t.seats)
-    return t, st, et, guests
+    target_date = timezone.localdate() - timedelta(days=day_offset)
+    start = timezone.make_aware(datetime.combine(target_date, time(hour, 0)))
+    end = start + timedelta(hours=1, minutes=30)
+    table = tables[table_idx]
+    guests = min(2, table.seats)
+    return table, start, end, guests
 
 
 def _future_dates_within_two_working_days(need: int):
-    """Даты (date), для которых до начала дня ≤ 2 рабочих дней (как в Reservation.clean)."""
     out = []
     today = timezone.localdate()
     for add in range(0, 21):
-        d = today + timedelta(days=add)
-        if d.weekday() >= 5:
+        target_date = today + timedelta(days=add)
+        if target_date.weekday() >= 5:
             continue
-        noon = timezone.make_aware(datetime.combine(d, time(12, 0)))
-        r = Reservation(start_time=noon)
-        if r.get_working_days_until(noon) <= 2:
-            out.append(d)
+        noon = timezone.make_aware(datetime.combine(target_date, time(12, 0)))
+        if Booking.get_working_days_until(noon) <= 2:
+            out.append(target_date)
         if len(out) >= need:
             break
     return out
 
 
-def _reservation_slot_future(index: int, tables: list[Table], future_dates: list):
-    n = len(tables)
-    d = future_dates[index % len(future_dates)]
+def _booking_slot_future(index: int, tables: list[Table], future_dates: list):
+    table_count = len(tables)
+    target_date = future_dates[index % len(future_dates)]
     hour = 10 + (index % 5) * 2
-    table_idx = (index + (index // len(future_dates))) % n
-    st = timezone.make_aware(datetime.combine(d, time(hour, 0)))
-    et = st + timedelta(hours=1, minutes=30)
-    t = tables[table_idx]
-    guests = min(2 + (index % 2), t.seats)
-    return t, st, et, guests
+    table_idx = (index + (index // len(future_dates))) % table_count
+    start = timezone.make_aware(datetime.combine(target_date, time(hour, 0)))
+    end = start + timedelta(hours=1, minutes=30)
+    table = tables[table_idx]
+    guests = min(2 + (index % 2), table.seats)
+    return table, start, end, guests
+
+
+def _create_order_for_booking(user, booking, dishes, quantity_seed, promotions):
+    order = CustomerOrder.objects.create(
+        public_id=booking.public_id,
+        user=user,
+        booking=booking,
+        order_type=CustomerOrder.TYPE_DINE_IN,
+        scheduled_for=booking.start_time,
+        status=CustomerOrder.STATUS_COMPLETED if booking.end_time < timezone.now() else CustomerOrder.STATUS_PENDING,
+        subtotal_amount=Decimal("0.00"),
+        discount_total=Decimal("0.00"),
+        total_amount=Decimal("0.00"),
+    )
+
+    subtotal = Decimal("0.00")
+    for offset in range(2):
+        dish = dishes[(quantity_seed + offset) % len(dishes)]
+        quantity = 1 + ((quantity_seed + offset) % 2)
+        line_total = dish.price * quantity
+        OrderItem.objects.create(
+            order=order,
+            dish=dish,
+            dish_name_snapshot=dish.name,
+            unit_price_snapshot=dish.price,
+            quantity=quantity,
+            line_total_snapshot=line_total,
+        )
+        subtotal += line_total
+
+    discount_total = Decimal("0.00")
+    if promotions:
+        promo = promotions[quantity_seed % len(promotions)]
+        if promo.discount_type == Promotion.DISCOUNT_PERCENT:
+            discount_total = (subtotal * promo.discount_value / Decimal("100")).quantize(Decimal("0.01"))
+        else:
+            discount_total = min(subtotal, promo.discount_value)
+        OrderAppliedPromotion.objects.create(
+            order=order,
+            promotion=promo,
+            promotion_name_snapshot=promo.name,
+            discount_amount_snapshot=discount_total,
+        )
+
+    order.subtotal_amount = subtotal
+    order.discount_total = discount_total
+    order.total_amount = subtotal - discount_total
+    order.save(update_fields=["subtotal_amount", "discount_total", "total_amount"])
+    return order
+
+
+def _create_takeout_order(user, scheduled_for, dishes, quantity_seed, promotions):
+    order = CustomerOrder.objects.create(
+        user=user,
+        order_type=CustomerOrder.TYPE_TAKEOUT,
+        scheduled_for=scheduled_for,
+        status=CustomerOrder.STATUS_COMPLETED if scheduled_for < timezone.now() else CustomerOrder.STATUS_PENDING,
+        subtotal_amount=Decimal("0.00"),
+        discount_total=Decimal("0.00"),
+        total_amount=Decimal("0.00"),
+    )
+    subtotal = Decimal("0.00")
+    for offset in range(2):
+        dish = dishes[(quantity_seed + offset) % len(dishes)]
+        quantity = 1 + ((quantity_seed + offset + 1) % 2)
+        line_total = dish.price * quantity
+        OrderItem.objects.create(
+            order=order,
+            dish=dish,
+            dish_name_snapshot=dish.name,
+            unit_price_snapshot=dish.price,
+            quantity=quantity,
+            line_total_snapshot=line_total,
+        )
+        subtotal += line_total
+
+    discount_total = Decimal("0.00")
+    if promotions:
+        promo = promotions[quantity_seed % len(promotions)]
+        if promo.discount_type == Promotion.DISCOUNT_PERCENT:
+            discount_total = (subtotal * promo.discount_value / Decimal("100")).quantize(Decimal("0.01"))
+        else:
+            discount_total = min(subtotal, promo.discount_value)
+        OrderAppliedPromotion.objects.create(
+            order=order,
+            promotion=promo,
+            promotion_name_snapshot=promo.name,
+            discount_amount_snapshot=discount_total,
+        )
+
+    order.subtotal_amount = subtotal
+    order.discount_total = discount_total
+    order.total_amount = subtotal - discount_total
+    order.save(update_fields=["subtotal_amount", "discount_total", "total_amount"])
+    return order
 
 
 def seed_demo_data() -> dict[str, int]:
     tables, dishes = _ensure_tables_and_dishes()
-    client_users, _op, _ad = _make_users()
+    client_users, _operator, _admin = _make_users()
     clients_only = client_users[:MIN_ROWS]
 
-    for i in range(MIN_ROWS):
-        t, st, et, g = _reservation_slot_past(i, tables)
-        Reservation.objects.create(
-            user=clients_only[i % len(clients_only)],
-            table=t,
-            guests_count=g,
-            start_time=st,
-            end_time=et,
+    day_settings = []
+    for dow in range(7):
+        day_setting, _ = WeeklyMenuDaySettings.objects.get_or_create(
+            day_of_week=dow,
+            defaults={"is_active": dow < 5},
+        )
+        day_settings.append(day_setting)
+
+    weekly_items = []
+    for order in range(MIN_ROWS):
+        day_setting = day_settings[order % 7]
+        dish = dishes[(order // 7) % len(dishes)]
+        weekly_items.append(WeeklyMenuItem(day_settings=day_setting, dish=dish, order=order))
+    WeeklyMenuItem.objects.bulk_create(weekly_items)
+
+    today = timezone.localdate()
+    overrides = []
+    items_per_override = min(3, len(dishes))
+    override_count = max(3, math.ceil(MIN_ROWS / items_per_override))
+    for idx in range(override_count):
+        overrides.append(
+            MenuOverride(
+                date_from=today + timedelta(days=idx * 7),
+                date_to=today + timedelta(days=idx * 7 + 2),
+                is_active=True,
+            )
+        )
+    MenuOverride.objects.bulk_create(overrides)
+
+    override_items = []
+    for idx, override in enumerate(MenuOverride.objects.order_by("id")):
+        for jdx in range(items_per_override):
+            override_items.append(
+                MenuOverrideItem(
+                    override=override,
+                    dish=dishes[(idx + jdx) % len(dishes)],
+                    action="add" if jdx % 2 == 0 else "remove",
+                    order=jdx,
+                )
+            )
+    MenuOverrideItem.objects.bulk_create(override_items)
+
+    now = timezone.now()
+    promotions = []
+    for idx in range(MIN_ROWS // 2):
+        promotions.append(
+            Promotion(
+                name=f"Dish promo {idx + 1}",
+                description=f"Discount offer for dish #{idx + 1}.",
+                kind=Promotion.KIND_SINGLE,
+                discount_type=Promotion.DISCOUNT_PERCENT,
+                discount_value=Decimal("10") + idx,
+                valid_from=now - timedelta(days=1),
+                valid_to=now + timedelta(days=90),
+                is_active=True,
+                target_dish=dishes[idx % len(dishes)],
+            )
+        )
+    for idx in range(MIN_ROWS - len(promotions)):
+        promotions.append(
+            Promotion(
+                name=f"Combo promo {idx + 1}",
+                description=f"Combo discount #{idx + 1}.",
+                kind=Promotion.KIND_COMBO,
+                discount_type=Promotion.DISCOUNT_FIXED_OFF,
+                discount_value=Decimal("50") + idx * 5,
+                valid_from=now - timedelta(days=1),
+                valid_to=now + timedelta(days=60),
+                is_active=True,
+            )
+        )
+    Promotion.objects.bulk_create(promotions)
+
+    combo_promotions = list(Promotion.objects.filter(kind=Promotion.KIND_COMBO))
+    combo_items = []
+    combo_size = min(2, len(dishes))
+    for promo in combo_promotions:
+        for idx in range(combo_size):
+            combo_items.append(
+                PromotionComboItem(
+                    promotion=promo,
+                    dish=dishes[idx],
+                    min_quantity=1 + idx,
+                )
+            )
+    PromotionComboItem.objects.bulk_create(combo_items)
+
+    single_promotions = list(Promotion.objects.filter(kind=Promotion.KIND_SINGLE))
+
+    bookings = []
+    for idx in range(MIN_ROWS):
+        table, start, end, guests = _booking_slot_past(idx, tables)
+        bookings.append(
+            Booking(
+                user=clients_only[idx % len(clients_only)],
+                table=table,
+                guests_count=guests,
+                start_time=start,
+                end_time=end,
+                status=Booking.STATUS_COMPLETED,
+            )
         )
 
     future_dates = _future_dates_within_two_working_days(max(MIN_ROWS, 5))
     if not future_dates:
         future_dates = [timezone.localdate() + timedelta(days=1)]
 
-    for i in range(MIN_ROWS):
-        t, st, et, g = _reservation_slot_future(i, tables, future_dates)
-        Reservation.objects.create(
-            user=clients_only[i % len(clients_only)],
-            table=t,
-            guests_count=g,
-            start_time=st,
-            end_time=et,
-        )
-
-    all_res = list(Reservation.objects.order_by("start_time"))
-    past_res = [r for r in all_res if r.start_time < timezone.now()]
-    future_res = [r for r in all_res if r.start_time >= timezone.now()]
-
-    for i, res in enumerate(all_res[: max(MIN_ROWS * 2, MIN_ROWS)]):
-        d1 = dishes[i % len(dishes)]
-        d2 = dishes[(i + 1) % len(dishes)]
-        ReservationDish.objects.get_or_create(
-            reservation=res,
-            dish=d1,
-            defaults={"quantity": 1 + (i % 2)},
-        )
-        if i % 2 == 0 and d2.id != d1.id:
-            ReservationDish.objects.get_or_create(
-                reservation=res,
-                dish=d2,
-                defaults={"quantity": 1},
-            )
-
-    day_settings = []
-    for dow in range(7):
-        ds, _ = WeeklyMenuDaySettings.objects.get_or_create(
-            day_of_week=dow,
-            defaults={"is_active": dow < 5},
-        )
-        day_settings.append(ds)
-
-    w_items = []
-    for order in range(MIN_ROWS):
-        ds = day_settings[order % 7]
-        dish = dishes[(order // 7) % len(dishes)]
-        w_items.append(WeeklyMenuItem(day_settings=ds, dish=dish, order=order))
-    WeeklyMenuItem.objects.bulk_create(w_items)
-
-    today = timezone.localdate()
-    overrides = []
-    n_per_ov_items = min(3, len(dishes))
-    n_ov = max(3, math.ceil(MIN_ROWS / n_per_ov_items))
-    for k in range(n_ov):
-        overrides.append(
-            MenuOverride(
-                date_from=today + timedelta(days=k * 7),
-                date_to=today + timedelta(days=k * 7 + 2),
-                is_active=True,
+    for idx in range(MIN_ROWS):
+        table, start, end, guests = _booking_slot_future(idx, tables, future_dates)
+        bookings.append(
+            Booking(
+                user=clients_only[idx % len(clients_only)],
+                table=table,
+                guests_count=guests,
+                start_time=start,
+                end_time=end,
+                status=Booking.STATUS_SCHEDULED,
             )
         )
-    MenuOverride.objects.bulk_create(overrides)
 
-    moi = []
-    for i, ov in enumerate(MenuOverride.objects.order_by("id")):
-        for j in range(n_per_ov_items):
-            moi.append(
-                MenuOverrideItem(
-                    override=ov,
-                    dish=dishes[(i + j) % len(dishes)],
-                    action="add" if j % 2 == 0 else "remove",
-                    order=j,
-                )
-            )
-    MenuOverrideItem.objects.bulk_create(moi)
+    for booking in bookings:
+        booking.save()
 
-    news_list = []
-    for i in range(MIN_ROWS):
-        pub = timezone.now() - timedelta(days=MIN_ROWS - i)
-        news_list.append(
+    persisted_bookings = list(Booking.objects.order_by("start_time", "pk"))
+    for idx, booking in enumerate(persisted_bookings):
+        promotions_for_order = single_promotions[:1] if booking.start_time >= timezone.now() and single_promotions else []
+        _create_order_for_booking(booking.user, booking, dishes, idx, promotions_for_order)
+
+    for idx in range(MIN_ROWS):
+        scheduled_for = timezone.make_aware(datetime.combine(future_dates[idx % len(future_dates)], time(11 + (idx % 5), 30)))
+        _create_takeout_order(
+            clients_only[idx % len(clients_only)],
+            scheduled_for,
+            dishes,
+            idx + len(persisted_bookings),
+            single_promotions[:1],
+        )
+
+    past_orders = list(
+        CustomerOrder.objects.filter(
+            scheduled_for__lt=timezone.now(),
+            order_type=CustomerOrder.TYPE_DINE_IN,
+        ).prefetch_related("items__dish")[:MIN_ROWS]
+    )
+    for idx, order in enumerate(past_orders):
+        line = order.items.first()
+        if line is None:
+            continue
+        OrderItemReview.objects.create(
+            order_item=line,
+            rating=3 + (idx % 3),
+            comment=f"Demo review {idx + 1}",
+        )
+
+    news_rows = []
+    for idx in range(MIN_ROWS):
+        published_at = timezone.now() - timedelta(days=MIN_ROWS - idx)
+        news_rows.append(
             News(
-                title=f"Новость корпоративной столовой №{i + 1}",
-                summary=f"Кратко: обновление меню и график питания ({i + 1}).",
-                body="Полный текст новости для демонстрации ленты. Столовая работает в штатном режиме.",
-                published_at=pub,
+                title=f"News item #{idx + 1}",
+                summary=f"Summary for update #{idx + 1}.",
+                body="Demo content for the cafeteria feed.",
+                published_at=published_at,
                 is_published=True,
             )
         )
-    News.objects.bulk_create(news_list)
+    News.objects.bulk_create(news_rows)
 
     complaints = []
-    for i in range(MIN_ROWS):
+    for idx in range(MIN_ROWS):
         complaints.append(
             VenueComplaint(
-                user=clients_only[i % len(clients_only)],
-                subject=f"Замечание по сервису #{i + 1}",
-                message=f"Текст обращения {i + 1}: температура в зале, очередь на кассе и т.п.",
-                status=["new", "seen", "closed"][i % 3],
+                user=clients_only[idx % len(clients_only)],
+                subject=f"Complaint #{idx + 1}",
+                message=f"Demo complaint text #{idx + 1}.",
+                status=["new", "seen", "closed"][idx % 3],
             )
         )
     VenueComplaint.objects.bulk_create(complaints)
-
-    now = timezone.now()
-    promos = []
-    for i in range(MIN_ROWS // 2):
-        promos.append(
-            Promotion(
-                name=f"Скидка на блюдо №{i + 1}",
-                description=f"Специальное предложение на выбранную позицию ({i + 1}).",
-                kind=Promotion.KIND_SINGLE,
-                discount_type=Promotion.DISCOUNT_PERCENT,
-                discount_value=Decimal("10") + i,
-                valid_from=now - timedelta(days=1),
-                valid_to=now + timedelta(days=90),
-                is_active=True,
-                target_dish=dishes[i % len(dishes)],
-            )
-        )
-    for i in range(MIN_ROWS - len(promos)):
-        promos.append(
-            Promotion(
-                name=f"Комбо-набор №{i + 1}",
-                description=f"Закажите набор блюд со скидкой ({i + 1}).",
-                kind=Promotion.KIND_COMBO,
-                discount_type=Promotion.DISCOUNT_FIXED_OFF,
-                discount_value=Decimal("50") + i * 5,
-                valid_from=now - timedelta(days=1),
-                valid_to=now + timedelta(days=60),
-                is_active=True,
-                target_dish=None,
-            )
-        )
-    Promotion.objects.bulk_create(promos)
-
-    combo_promos = list(Promotion.objects.filter(kind=Promotion.KIND_COMBO))
-    combo_items = []
-    ncombo = min(2, len(dishes))
-    for p in combo_promos:
-        for j in range(ncombo):
-            combo_items.append(
-                PromotionComboItem(
-                    promotion=p,
-                    dish=dishes[j],
-                    min_quantity=1 + j,
-                )
-            )
-    PromotionComboItem.objects.bulk_create(combo_items)
-
-    single_promos = list(Promotion.objects.filter(kind=Promotion.KIND_SINGLE))
-    for i, res in enumerate(future_res[: min(5, len(future_res))]):
-        if not single_promos:
-            break
-        pr = single_promos[i % len(single_promos)]
-        ReservationAppliedPromotion.objects.get_or_create(
-            reservation=res,
-            promotion=pr,
-            defaults={"discount_amount": Decimal("15.00") + i},
-        )
-        res.applied_promotion = pr
-        res.promotion_discount_total = Decimal("15.00") + i
-        res.save(update_fields=["applied_promotion", "promotion_discount_total"])
-
-    rds = list(
-        ReservationDish.objects.filter(reservation__in=past_res).select_related("reservation", "dish")[:MIN_ROWS]
-    )
-    reviews = []
-    for i, rd in enumerate(rds):
-        reviews.append(
-            DishReview(
-                reservation_dish=rd,
-                user=rd.reservation.user,
-                dish=rd.dish,
-                rating=3 + (i % 3),
-                comment=f"Демо-отзыв {i + 1}: вкус и порция.",
-            )
-        )
-    DishReview.objects.bulk_create(reviews)
 
     return {
         "Table": Table.objects.count(),
         "Dish": Dish.objects.count(),
         "User": User.objects.count(),
         "UserProfile": UserProfile.objects.count(),
-        "Reservation": Reservation.objects.count(),
-        "ReservationDish": ReservationDish.objects.count(),
+        "Booking": Booking.objects.count(),
+        "CustomerOrder": CustomerOrder.objects.count(),
+        "OrderItem": OrderItem.objects.count(),
+        "OrderItemReview": OrderItemReview.objects.count(),
         "WeeklyMenuDaySettings": WeeklyMenuDaySettings.objects.count(),
         "WeeklyMenuItem": WeeklyMenuItem.objects.count(),
         "MenuOverride": MenuOverride.objects.count(),
@@ -350,8 +433,7 @@ def seed_demo_data() -> dict[str, int]:
         "VenueComplaint": VenueComplaint.objects.count(),
         "Promotion": Promotion.objects.count(),
         "PromotionComboItem": PromotionComboItem.objects.count(),
-        "ReservationAppliedPromotion": ReservationAppliedPromotion.objects.count(),
-        "DishReview": DishReview.objects.count(),
+        "OrderAppliedPromotion": OrderAppliedPromotion.objects.count(),
     }
 
 

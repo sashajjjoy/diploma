@@ -1,26 +1,27 @@
 from django.urls import path
 from . import views
+from . import views_booking
 
 urlpatterns = [
     # Общие
     path('', views.dashboard, name='dashboard'),
-    path('admin/cabinet/', views.admin_cabinet, name='admin_cabinet'),
+    path('admin/cabinet/', views_booking.admin_cabinet, name='admin_cabinet'),
     
     # API для получения занятых временных слотов
-    path('api/occupied-slots/', views.get_occupied_time_slots, name='get_occupied_time_slots'),
-    path('api/available-slots/', views.check_available_time_slots, name='check_available_time_slots'),
+    path('api/occupied-slots/', views_booking.get_occupied_time_slots, name='get_occupied_time_slots'),
+    path('api/available-slots/', views_booking.check_available_time_slots, name='check_available_time_slots'),
     
     # Бронирования клиента
-    path('reservations/create/', views.reservation_create, name='reservation_create'),
-    path('client/reservations/<int:pk>/', views.reservation_detail, name='reservation_detail'),
-    path('client/reservations/<int:pk>/edit/', views.reservation_edit, name='reservation_edit'),
-    path('client/reservations/<int:pk>/delete/', views.reservation_delete, name='reservation_delete'),
+    path('reservations/create/', views_booking.reservation_create, name='reservation_create'),
+    path('client/reservations/<int:pk>/', views_booking.reservation_detail, name='reservation_detail'),
+    path('client/reservations/<int:pk>/edit/', views_booking.reservation_edit, name='reservation_edit'),
+    path('client/reservations/<int:pk>/delete/', views_booking.reservation_delete, name='reservation_delete'),
     
     # Личный кабинет оператора
-    path('operator/', views.operator_cabinet, name='operator_cabinet'),
-    path('operator/reservations/', views.operator_reservations, name='operator_reservations'),
-    path('operator/reservations/<int:pk>/', views.operator_reservation_detail, name='operator_reservation_detail'),
-    path('operator/reservations/<int:pk>/delete/', views.operator_reservation_delete, name='operator_reservation_delete'),
+    path('operator/', views_booking.operator_cabinet, name='operator_cabinet'),
+    path('operator/reservations/', views_booking.operator_reservations, name='operator_reservations'),
+    path('operator/reservations/<int:pk>/', views_booking.operator_reservation_detail, name='operator_reservation_detail'),
+    path('operator/reservations/<int:pk>/delete/', views_booking.operator_reservation_delete, name='operator_reservation_delete'),
     
     # Управление столиками (оператор)
     path('operator/tables/', views.operator_tables, name='operator_tables'),
@@ -56,17 +57,18 @@ urlpatterns = [
     path('operator/promotions/<int:pk>/delete/', views.operator_promotion_delete, name='operator_promotion_delete'),
     path('operator/complaints/', views.operator_complaint_list, name='operator_complaint_list'),
 
-    path('client/orders/', views.client_order_list, name='client_order_list'),
-    path('client/orders/<int:pk>/', views.client_order_detail, name='client_order_detail'),
+    path('client/orders/', views_booking.client_order_list, name='client_order_list'),
+    path('client/menu/today/', views_booking.client_today_menu, name='client_today_menu'),
+    path('client/orders/<int:pk>/', views_booking.client_order_detail, name='client_order_detail'),
     path(
         'client/orders/<int:rid>/line/<int:line_id>/review/',
-        views.client_dish_review_create,
+        views_booking.client_dish_review_create,
         name='client_dish_review_create',
     ),
+    path('client/dishes/<int:pk>/reviews/', views_booking.client_dish_review_list, name='client_dish_review_list'),
     path('client/complaints/', views.client_complaint_list, name='client_complaint_list'),
     path('client/complaints/new/', views.client_complaint_create, name='client_complaint_create'),
     path('client/news/', views.client_news_list, name='client_news_list'),
     path('client/news/<int:pk>/', views.client_news_detail, name='client_news_detail'),
     path('client/promotions/', views.client_promotion_list, name='client_promotion_list'),
 ]
-

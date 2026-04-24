@@ -75,7 +75,7 @@
                     <td>{% if reservation.table %}№{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</td>
                     <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
                     <td>{{ reservation.guests_count }}</td>
-                    <td><a href="{% url 'operator_reservation_detail' reservation.pk %}" class="btn">Просмотр</a></td>
+                    <td><a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Просмотр</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -85,7 +85,6 @@
     {% endif %}
 </div>
 {% endblock %}
-
 
 
 

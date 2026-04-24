@@ -219,7 +219,7 @@
                 {% endfor %}
             </div>
             <input type="hidden" name="date" id="selected_date" value="{{ selected_date_key }}" required>
-            <input type="hidden" id="reservation_id" value="{{ reservation.pk }}">
+            <input type="hidden" id="reservation_id" value="{{ reservation.public_id|default:reservation.pk }}">
         </div>
         
         <!-- Время -->
@@ -493,4 +493,3 @@
     });
 </script>
 {% endblock %}
-

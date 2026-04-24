@@ -36,7 +36,7 @@
             <tbody>
                 {% for res_dish in reservations %}
                 <tr>
-                    <td>№{{ res_dish.reservation.pk }}</td>
+                    <td>№{{ res_dish.reservation.public_id|default:res_dish.reservation.pk }}</td>
                     <td>{{ res_dish.reservation.user.get_full_name|default:res_dish.reservation.user.username }}</td>
                     <td>{{ res_dish.reservation.start_time|date:"d.m.Y H:i" }}</td>
                     <td>{{ res_dish.quantity }}</td>
@@ -51,4 +51,3 @@
 
 <a href="{% url 'operator_dishes' %}" class="btn">Вернуться к списку</a>
 {% endblock %}
-

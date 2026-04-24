@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 
 import pytz
+from django.db.models import Q
 from django.utils import timezone
 
-from bookings.models import Reservation, Table
+from bookings.models import Booking, Table
 
 MOSCOW_TZ = pytz.timezone("Europe/Moscow")
 
@@ -36,6 +37,13 @@ def resolve_relative_booking_date(date_str):
     raise ValueError("Invalid relative booking date.")
 
 
+def parse_booking_date(date_raw):
+    try:
+        return datetime.fromisoformat(date_raw).date()
+    except ValueError:
+        return resolve_relative_booking_date(date_raw)
+
+
 def build_reservation_datetimes(target_date, time_str=None, duration_minutes=None, takeout=False):
     if takeout:
         start_datetime = MOSCOW_TZ.localize(
@@ -54,29 +62,37 @@ def build_reservation_datetimes(target_date, time_str=None, duration_minutes=Non
     return start_datetime, end_datetime
 
 
-def find_available_table(guests_count, start_datetime, end_datetime, exclude_reservation_id=None):
+def is_booking_time_allowed(start_datetime):
+    start_local = timezone.localtime(start_datetime, MOSCOW_TZ)
+    now_local = timezone.localtime(timezone.now(), MOSCOW_TZ)
+    return start_local >= now_local + timedelta(minutes=30)
+
+
+def find_available_table(guests_count, start_datetime, end_datetime, exclude_booking_id=None):
+    if not is_booking_time_allowed(start_datetime):
+        return None
     suitable_tables = Table.objects.filter(seats__gte=guests_count).order_by("seats")
     for table in suitable_tables:
-        overlapping_query = Reservation.objects.filter(table=table).filter(
+        overlapping_query = Booking.objects.filter(table=table).exclude(status=Booking.STATUS_CANCELLED).filter(
             start_time__lt=end_datetime,
             end_time__gt=start_datetime,
         )
-        if exclude_reservation_id:
-            overlapping_query = overlapping_query.exclude(pk=exclude_reservation_id)
+        if exclude_booking_id:
+            overlapping_query = overlapping_query.exclude(pk=exclude_booking_id)
         if not overlapping_query.exists():
             return table
     return None
 
 
-def occupied_slots_for_table_date(table, target_date, reservation_id=None):
+def occupied_slots_for_table_date(table, target_date, booking_id=None):
     start_of_day, end_of_day = day_range_for_date(target_date)
-    reservations = Reservation.objects.filter(
+    reservations = Booking.objects.filter(
         table=table,
         start_time__gte=start_of_day,
         start_time__lt=end_of_day,
-    )
-    if reservation_id:
-        reservations = reservations.exclude(pk=reservation_id)
+    ).exclude(status=Booking.STATUS_CANCELLED)
+    if booking_id:
+        reservations = reservations.exclude(Q(public_id=booking_id) | Q(pk=booking_id))
 
     occupied_slots = []
     for reservation in reservations:
@@ -104,13 +120,15 @@ def available_slots_for_date(target_date, guests_count, durations=(25, 55)):
             start_datetime, end_datetime = build_reservation_datetimes(
                 target_date, time_str=time_str, duration_minutes=duration
             )
+            if not is_booking_time_allowed(start_datetime):
+                continue
             is_available = False
             for table in suitable_tables:
-                overlapping = Reservation.objects.filter(
+                overlapping = Booking.objects.filter(
                     table=table,
                     start_time__lt=end_datetime,
                     end_time__gt=start_datetime,
-                ).exists()
+                ).exclude(status=Booking.STATUS_CANCELLED).exists()
                 if not overlapping:
                     is_available = True
                     break
