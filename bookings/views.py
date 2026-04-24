@@ -5,17 +5,20 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from django.db.models import Q, Count
+from django.db.models import Avg, Count, Q
 from django.core.paginator import Paginator
 from datetime import timedelta, datetime
 import pytz
 from decimal import Decimal
 
 from .models import (
+    Booking,
+    CustomerOrder,
+    OrderAppliedPromotion,
+    OrderItem,
+    OrderItemReview,
     Table,
     Dish,
-    Reservation,
-    ReservationDish,
     UserProfile,
     WeeklyMenuDaySettings,
     WeeklyMenuItem,
@@ -23,20 +26,36 @@ from .models import (
     MenuOverrideItem,
     News,
     VenueComplaint,
-    DishReview,
     Promotion,
     PromotionComboItem,
-    ReservationAppliedPromotion,
 )
 from .forms import ReservationForm
+from .services.availability import occupied_slots_for_table_date, available_slots_for_date
+from .services.reservations import (
+    booking_detail_queryset,
+    cancel_reservation_for_client,
+    create_dish_review,
+    create_or_update_reservation_for_client,
+    get_booking_or_404_for_user,
+    get_order_or_404_for_user,
+    get_public_id,
+    is_order_completed_for_review,
+    order_detail_queryset,
+)
 from .services.promotions import (
     get_orderable_promotions,
     parse_dish_quantities_from_post,
     order_subtotal,
     compute_order_totals,
+    promotion_price_preview,
     resolve_promotions_for_checkout,
     unit_price_after_single_promo,
 )
+
+Reservation = Booking
+ReservationDish = OrderItem
+DishReview = OrderItemReview
+ReservationAppliedPromotion = OrderAppliedPromotion
 
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 
@@ -54,18 +73,30 @@ def client_home_promotion_context():
         single_promos_by_dish.setdefault(d.pk, []).append(
             {
                 'promo': p,
+                'original_price': Decimal(d.price).quantize(Decimal('0.01')),
                 'price_new': unit_price_after_single_promo(d, p),
+            }
+        )
+    combo_promotions_data = []
+    for promotion in combo_promotions:
+        preview = promotion_price_preview(promotion)
+        combo_promotions_data.append(
+            {
+                "promo": promotion,
+                "original_price": preview["original_price"],
+                "price_new": preview["new_price"],
             }
         )
     return {
         'active_promotions': promos,
-        'combo_promotions': combo_promotions,
+        'combo_promotions': combo_promotions_data,
         'single_promos_by_dish': single_promos_by_dish,
     }
 
 
-def is_order_completed_for_review(reservation):
-    return reservation.end_time < timezone.now()
+def _ordered_dishes_for_ids(dish_ids):
+    dishes_by_id = Dish.objects.in_bulk(dish_ids)
+    return [dishes_by_id[dish_id] for dish_id in dish_ids if dish_id in dishes_by_id]
 
 
 def get_menu_dishes_for_date(target_date):
@@ -137,7 +168,7 @@ def find_available_table(guests_count, start_datetime, end_datetime, exclude_res
     
     for table in suitable_tables:
         # Проверяем, нет ли пересекающихся бронирований для этого столика
-        overlapping_query = Reservation.objects.filter(
+        overlapping_query = Booking.objects.exclude(status=Booking.STATUS_CANCELLED).filter(
             table=table
         ).filter(
             Q(start_time__lt=end_datetime) & Q(end_time__gt=start_datetime)
@@ -524,6 +555,8 @@ def reservation_create(request):
     for date_key, date_label, date_obj in available_dates:
         dishes_by_date[date_key] = list(get_menu_dishes_for_date(date_obj))
     dishes_by_date_json = json.dumps(dishes_by_date)
+    today_menu_ids = list(get_menu_dishes_for_date(now.date()))
+    today_menu_dishes = _ordered_dishes_for_ids(today_menu_ids)
     
     context = {
         'form': form,
@@ -531,6 +564,8 @@ def reservation_create(request):
         'available_dates': available_dates,
         'time_slots': time_slots,
         'all_dishes': all_dishes,
+        'today_menu_dishes': today_menu_dishes,
+        'today_menu_date': now.date(),
         'dishes_by_date': dishes_by_date_json,
         **client_home_promotion_context(),
     }
@@ -2043,6 +2078,24 @@ def client_order_detail(request, pk):
         request,
         'bookings/client_order_detail.html',
         {'reservation': reservation, 'line_info': line_info, 'completed': completed},
+    )
+
+
+@login_required
+@user_passes_test(is_client, login_url='/')
+def client_dish_review_list(request, pk):
+    dish = get_object_or_404(Dish, pk=pk)
+    reviews = DishReview.objects.filter(dish=dish).select_related('user').order_by('-created_at')
+    review_stats = reviews.aggregate(avg_rating=Avg('rating'), reviews_count=Count('id'))
+    return render(
+        request,
+        'bookings/client_dish_review_list.html',
+        {
+            'dish': dish,
+            'reviews': reviews,
+            'avg_rating': review_stats['avg_rating'],
+            'reviews_count': review_stats['reviews_count'],
+        },
     )
 
 

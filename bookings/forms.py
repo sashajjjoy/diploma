@@ -1,5 +1,5 @@
 from django import forms
-from .models import Reservation
+from .models import Booking
 
 class ReservationForm(forms.ModelForm):
     DURATION_CHOICES = [
@@ -14,7 +14,7 @@ class ReservationForm(forms.ModelForm):
     )
     
     class Meta:
-        model = Reservation
+        model = Booking
         fields = ['table', 'guests_count', 'start_time']
         widgets = {
             'table': forms.Select(attrs={'class': 'form-control'}),
@@ -55,4 +55,3 @@ class ReservationForm(forms.ModelForm):
             cleaned_data['end_time'] = start_time + timedelta(minutes=int(duration))
         
         return cleaned_data
-

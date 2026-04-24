@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Отзывы: {{ dish.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Отзывы о блюде: {{ dish.name }}</h2>
+    <p>
+        {% if avg_rating %}
+        Средняя оценка: <strong>{{ avg_rating|floatformat:1 }}</strong> / 5
+        {% else %}
+        У этого блюда пока нет оценок.
+        {% endif %}
+    </p>
+    <p>Всего отзывов: {{ reviews_count }}</p>
+
+    {% if eligible_reviews %}
+    <div style="margin: 1rem 0;">
+        <h3 style="margin-bottom: 0.75rem;">Можно оставить отзыв</h3>
+        {% for option in eligible_reviews %}
+        <a href="{% url 'client_dish_review_create' option.order.public_id|default:option.order.pk option.line.public_id|default:option.line.pk %}" class="btn btn-success" style="margin-right: 0.75rem;">
+            Заказ №{{ option.order.public_id|default:option.order.pk }}
+        </a>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if request.GET.next %}
+    <a href="{{ request.GET.next }}" class="btn">Назад</a>
+    {% else %}
+    <a href="{% url 'home' %}" class="btn">На главную</a>
+    {% endif %}
+</div>
+
+<div class="card">
+    {% if reviews %}
+    <table>
+        <thead>
+            <tr>
+                <th>Автор</th>
+                <th>Оценка</th>
+                <th>Комментарий</th>
+                <th>Дата</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for review in reviews %}
+            <tr>
+                <td>{{ review.user.username }}</td>
+                <td>{{ review.rating }}/5</td>
+                <td>{{ review.comment|default:"Без комментария" }}</td>
+                <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>Пока никто не оставил отзывов на это блюдо.</p>
+    {% endif %}
+</div>
+{% endblock %}

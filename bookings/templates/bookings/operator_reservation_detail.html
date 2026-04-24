@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 
-{% block title %}Бронирование №{{ reservation.pk }}{% endblock %}
+{% block title %}Бронирование №{{ reservation.public_id|default:reservation.pk }}{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2>Бронирование №{{ reservation.pk }}</h2>
+    <h2>Бронирование №{{ reservation.public_id|default:reservation.pk }}</h2>
     
     <div style="margin: 1.5rem 0;">
         <p><strong>Пользователь:</strong> {{ reservation.user.get_full_name|default:reservation.user.username }} ({{ reservation.user.email }})</p>
@@ -55,10 +55,9 @@
 
 <div style="margin-top: 1.5rem;">
     <a href="{% url 'operator_reservations' %}" class="btn">Вернуться к списку</a>
-    <a href="{% url 'operator_reservation_delete' reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить бронирование</a>
+    <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить бронирование</a>
 </div>
 {% endblock %}
-
 
 
 

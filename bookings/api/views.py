@@ -1,3 +1,4 @@
+from django.db.models import Case, When
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -6,11 +7,17 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from bookings.models import Dish, News, Table, VenueComplaint
-from bookings.services.availability import available_slots_for_date, occupied_slots_for_table_date
+from bookings.models import Booking, CustomerOrder, Dish, News, Table, VenueComplaint
+from bookings.services.availability import available_slots_for_date, occupied_slots_for_table_date, parse_booking_date
 from bookings.services.menu import get_menu_dishes_for_date
 from bookings.services.promotions import get_orderable_promotions
-from bookings.services.reservations import cancel_reservation_for_client, reservation_detail_queryset
+from bookings.services.reservations import (
+    booking_detail_queryset,
+    cancel_reservation_for_client,
+    get_booking_or_404_for_user,
+    get_order_or_404_for_user,
+    order_detail_queryset,
+)
 
 from .permissions import IsClientUser
 from .serializers import (
@@ -24,6 +31,8 @@ from .serializers import (
     MenuDaySerializer,
     NewsDetailSerializer,
     NewsListSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
     PromotionDetailSerializer,
     PromotionListSerializer,
     ReservationCreateUpdateSerializer,
@@ -107,10 +116,15 @@ class MenuView(APIView):
         date_raw = request.query_params.get("date")
         if not date_raw:
             raise serializers.ValidationError({"date": ["This query parameter is required."]})
-        date_field = MenuDaySerializer().fields["date"]
-        target_date = date_field.to_internal_value(date_raw)
-        dish_ids = sorted(get_menu_dishes_for_date(target_date))
-        dishes = Dish.objects.filter(pk__in=dish_ids).order_by("name")
+        try:
+            target_date = parse_booking_date(date_raw)
+        except ValueError:
+            raise serializers.ValidationError({"date": ["Invalid booking date."]})
+        dish_ids = get_menu_dishes_for_date(target_date)
+        dishes = Dish.objects.filter(pk__in=dish_ids)
+        if dish_ids:
+            order_case = Case(*[When(pk=pk, then=position) for position, pk in enumerate(dish_ids)])
+            dishes = dishes.order_by(order_case)
         payload = {
             "date": target_date,
             "dish_ids": dish_ids,
@@ -131,6 +145,9 @@ class DishListView(generics.ListAPIView):
             target_date = date_field.to_internal_value(date_raw)
             dish_ids = get_menu_dishes_for_date(target_date)
             queryset = queryset.filter(pk__in=dish_ids)
+            if dish_ids:
+                order_case = Case(*[When(pk=pk, then=position) for position, pk in enumerate(dish_ids)])
+                queryset = queryset.order_by(order_case)
         return queryset
 
 
@@ -146,7 +163,7 @@ class OccupiedSlotsView(APIView):
         date_field = MenuDaySerializer().fields["date"]
         target_date = date_field.to_internal_value(date_raw)
         reservation_id = request.query_params.get("reservation_id")
-        occupied = occupied_slots_for_table_date(table, target_date, reservation_id=reservation_id)
+        occupied = occupied_slots_for_table_date(table, target_date, booking_id=reservation_id)
         return Response(
             {
                 "date": target_date.isoformat(),
@@ -171,8 +188,10 @@ class AvailableSlotsView(APIView):
         guests_count = request.query_params.get("guests_count")
         if not date_raw or not guests_count:
             raise serializers.ValidationError({"detail": ["date and guests_count are required."]})
-        date_field = MenuDaySerializer().fields["date"]
-        target_date = date_field.to_internal_value(date_raw)
+        try:
+            target_date = parse_booking_date(date_raw)
+        except ValueError:
+            raise serializers.ValidationError({"date": ["Invalid booking date."]})
         guests_field = serializers.IntegerField(min_value=1)
         guests_count_value = guests_field.to_internal_value(guests_count)
         slots = available_slots_for_date(target_date, guests_count_value)
@@ -183,7 +202,7 @@ class ClientReservationListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
-        return reservation_detail_queryset().filter(user=self.request.user).order_by("-start_time")
+        return booking_detail_queryset().filter(user=self.request.user).order_by("-start_time")
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -194,7 +213,10 @@ class ClientReservationListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         reservation = serializer.save()
-        output = ReservationDetailSerializer(reservation, context={"request": request})
+        if isinstance(reservation, Booking):
+            output = ReservationDetailSerializer(reservation, context={"request": request})
+        else:
+            output = OrderDetailSerializer(reservation, context={"request": request})
         headers = self.get_success_headers(output.data)
         return Response(output.data, status=status.HTTP_201_CREATED, headers=headers)
 
@@ -202,8 +224,11 @@ class ClientReservationListCreateView(generics.ListCreateAPIView):
 class ClientReservationDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
-    def get_queryset(self):
-        return reservation_detail_queryset().filter(user=self.request.user).order_by("-start_time")
+    def get_object(self):
+        booking = get_booking_or_404_for_user(self.request.user, int(self.kwargs["pk"]))
+        if booking is None:
+            raise Http404
+        return booking
 
     def get_serializer_class(self):
         if self.request.method in ("PATCH", "PUT"):
@@ -215,8 +240,8 @@ class ClientReservationDetailView(generics.RetrieveUpdateDestroyAPIView):
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        reservation = serializer.save()
-        return Response(ReservationDetailSerializer(reservation, context={"request": request}).data)
+        booking = serializer.save()
+        return Response(ReservationDetailSerializer(booking, context={"request": request}).data)
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -225,19 +250,22 @@ class ClientReservationDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 class ClientOrderListView(generics.ListAPIView):
-    serializer_class = ReservationListSerializer
+    serializer_class = OrderListSerializer
     permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
-        return reservation_detail_queryset().filter(user=self.request.user).order_by("-start_time")
+        return order_detail_queryset().filter(user=self.request.user).order_by("-scheduled_for")
 
 
 class ClientOrderDetailView(generics.RetrieveAPIView):
-    serializer_class = ReservationDetailSerializer
+    serializer_class = OrderDetailSerializer
     permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
-    def get_queryset(self):
-        return reservation_detail_queryset().filter(user=self.request.user).order_by("-start_time")
+    def get_object(self):
+        order = get_order_or_404_for_user(self.request.user, int(self.kwargs["pk"]))
+        if order is None:
+            raise Http404
+        return order
 
 
 class ComplaintListCreateView(generics.ListCreateAPIView):
@@ -254,10 +282,10 @@ class DishReviewCreateView(generics.CreateAPIView):
 
     def get_serializer_context(self):
         context = super().get_serializer_context()
-        context["reservation"] = get_object_or_404(
-            reservation_detail_queryset().filter(user=self.request.user),
-            pk=self.kwargs["reservation_id"],
-        )
+        order = get_order_or_404_for_user(self.request.user, int(self.kwargs["reservation_id"]))
+        if order is None:
+            raise Http404
+        context["order"] = order
         return context
 
     def create(self, request, *args, **kwargs):

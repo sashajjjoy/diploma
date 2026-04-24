@@ -5,13 +5,14 @@ from django.shortcuts import render, redirect
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from django.utils import timezone
 from bookings.views_auth import CustomLoginView
 
 
 def home(request):
     """Главная страница с информацией о проекте"""
-    from bookings.views import reservation_create
-    from bookings.models import Reservation
+    from bookings.views_booking import reservation_create
+    from bookings.models import Booking
     
     # Если пользователь не авторизован - редирект на логин
     if not request.user.is_authenticated:
@@ -54,10 +55,12 @@ def home(request):
             profile = request.user.profile
             if profile.role == 'client':
                 from django.core.paginator import Paginator
-                reservations_query = Reservation.objects.filter(user=request.user).order_by('-start_time')
+                reservations_query = Booking.objects.filter(user=request.user).order_by('-start_time')
                 paginator = Paginator(reservations_query, 10)
                 page_number = request.GET.get('page', 1)
                 reservations_page = paginator.get_page(page_number)
+                for reservation in reservations_page.object_list:
+                    reservation.pk = reservation.public_id or reservation.pk
                 reservations = reservations_page
                 
                 # Генерируем доступные рабочие дни (используем московское время)
@@ -97,7 +100,11 @@ def home(request):
                 
                 # Получаем доступные блюда для предзаказа
                 from bookings.models import Dish
-                from bookings.views import get_menu_dishes_for_date, client_home_promotion_context
+                from bookings.views import (
+                    _ordered_dishes_for_ids,
+                    client_home_promotion_context,
+                    get_menu_dishes_for_date,
+                )
                 import json
                 all_dishes = Dish.objects.filter(available_quantity__gt=0).order_by('name')
                 
@@ -106,12 +113,16 @@ def home(request):
                 for date_key, date_label, date_obj in available_dates:
                     dishes_by_date[date_key] = list(get_menu_dishes_for_date(date_obj))
                 dishes_by_date_json = json.dumps(dishes_by_date)
+                today_menu_ids = list(get_menu_dishes_for_date(now.date()))
+                today_menu_dishes = _ordered_dishes_for_ids(today_menu_ids)
                 promo_ctx = client_home_promotion_context()
             else:
                 all_dishes = []
+                today_menu_dishes = []
                 promo_ctx = {}
         except:
             all_dishes = []
+            today_menu_dishes = []
             promo_ctx = {}
             pass
     
@@ -120,6 +131,8 @@ def home(request):
         'available_dates': available_dates,
         'time_slots': time_slots,
         'all_dishes': all_dishes if 'all_dishes' in locals() else [],
+        'today_menu_dishes': today_menu_dishes if 'today_menu_dishes' in locals() else [],
+        'today_menu_date': timezone.localtime(timezone.now()).date(),
         'dishes_by_date': dishes_by_date_json if 'dishes_by_date_json' in locals() else '{}',
         'page_obj': reservations_page,
         **(promo_ctx if 'promo_ctx' in locals() and promo_ctx else {
@@ -128,6 +141,12 @@ def home(request):
             'single_promos_by_dish': {},
         }),
     }
+    if request.user.is_authenticated:
+        try:
+            if request.user.profile.role == 'client':
+                return render(request, 'bookings/client_home.html', context)
+        except Exception:
+            pass
     return render(request, 'home.html', context)
 
 

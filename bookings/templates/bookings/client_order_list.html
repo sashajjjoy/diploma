@@ -18,7 +18,7 @@
                 <td>{{ o.start_time|date:"d.m.Y H:i" }}</td>
                 <td>{{ o.end_time|date:"d.m.Y H:i" }}</td>
                 <td>{% if o.order_total %}{{ o.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
-                <td><a href="{% url 'client_order_detail' o.pk %}" class="btn">Подробнее</a></td>
+                <td><a href="{% url 'client_order_detail' o.public_id|default:o.pk %}" class="btn">Подробнее</a></td>
             </tr>
             {% endfor %}
         </tbody>

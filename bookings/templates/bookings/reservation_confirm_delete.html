@@ -16,11 +16,10 @@
     <form method="post">
         {% csrf_token %}
         <button type="submit" class="btn btn-danger">Да, отменить</button>
-        <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Отмена</a>
+    <a href="{% url 'reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Отмена</a>
     </form>
 </div>
 {% endblock %}
-
 
 
 

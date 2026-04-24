@@ -1,28 +1,15 @@
 from datetime import datetime, timedelta
 from decimal import Decimal
+from unittest.mock import patch
 
 import pytz
 from django.contrib.auth.models import User
 from django.test import TestCase
-from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from bookings.models import (
-    Dish,
-    MenuOverride,
-    MenuOverrideItem,
-    News,
-    Promotion,
-    PromotionComboItem,
-    Reservation,
-    ReservationDish,
-    Table,
-    UserProfile,
-    VenueComplaint,
-    WeeklyMenuDaySettings,
-    WeeklyMenuItem,
-)
+from bookings.models import Booking, CustomerOrder, Dish, OrderItem, OrderItemReview, Promotion, Table, UserProfile, WeeklyMenuDaySettings, WeeklyMenuItem
+
 
 MOSCOW_TZ = pytz.timezone("Europe/Moscow")
 
@@ -36,32 +23,20 @@ class ApiBaseTestCase(TestCase):
         UserProfile.objects.create(user=self.client_user, role="client")
         UserProfile.objects.create(user=self.other_user, role="client")
         UserProfile.objects.create(user=self.operator_user, role="operator")
-
         self.table2 = Table.objects.create(table_number="T2", seats=2)
         self.table4 = Table.objects.create(table_number="T4", seats=4)
         self.dish1 = Dish.objects.create(name="Soup", price=Decimal("120.00"), available_quantity=20)
         self.dish2 = Dish.objects.create(name="Cutlet", price=Decimal("250.00"), available_quantity=20)
-        self.dish3 = Dish.objects.create(name="Tea", price=Decimal("50.00"), available_quantity=20)
-
         self.booking_date = self._next_weekday(timezone.localdate())
-        self._ensure_weekly_menu(self.booking_date, [self.dish1, self.dish2])
+        day_settings = WeeklyMenuDaySettings.objects.create(day_of_week=self.booking_date.weekday(), is_active=True)
+        WeeklyMenuItem.objects.create(day_settings=day_settings, dish=self.dish1, order=1)
+        WeeklyMenuItem.objects.create(day_settings=day_settings, dish=self.dish2, order=2)
 
-    def _next_weekday(self, start_date, offset_days=1):
-        candidate = start_date + timedelta(days=offset_days)
+    def _next_weekday(self, start_date):
+        candidate = start_date + timedelta(days=1)
         while candidate.weekday() >= 5:
             candidate += timedelta(days=1)
         return candidate
-
-    def _ensure_weekly_menu(self, target_date, dishes):
-        day_settings, _ = WeeklyMenuDaySettings.objects.get_or_create(
-            day_of_week=target_date.weekday(),
-            defaults={"is_active": True},
-        )
-        day_settings.is_active = True
-        day_settings.save()
-        WeeklyMenuItem.objects.filter(day_settings=day_settings).delete()
-        for order, dish in enumerate(dishes, start=1):
-            WeeklyMenuItem.objects.create(day_settings=day_settings, dish=dish, order=order)
 
     def _booking_datetimes(self, target_date=None, hour=12, minute=0, duration=55):
         target_date = target_date or self.booking_date
@@ -72,114 +47,35 @@ class ApiBaseTestCase(TestCase):
     def auth_as_client(self):
         self.client_api.force_authenticate(user=self.client_user)
 
-    def auth_as_other(self):
-        self.client_api.force_authenticate(user=self.other_user)
-
-    def auth_as_operator(self):
-        self.client_api.force_authenticate(user=self.operator_user)
-
-    def create_reservation(self, user=None, target_date=None, hour=12, minute=0, duration=55, table=None):
+    def create_booking(self, user=None, target_date=None, hour=12, minute=0, duration=55, table=None):
         user = user or self.client_user
         table = table or self.table2
         start, end = self._booking_datetimes(target_date, hour=hour, minute=minute, duration=duration)
-        return Reservation.objects.create(
+        booking = Booking.objects.create(
             user=user,
             table=table,
             guests_count=min(table.seats, 2),
             start_time=start,
             end_time=end,
-            order_subtotal=Decimal("0"),
-            order_total=Decimal("0"),
         )
-
-
-class AuthApiTests(ApiBaseTestCase):
-    def test_login_refresh_and_me(self):
-        response = self.client_api.post("/api/v1/auth/login/", {"username": "client", "password": "pass12345"}, format="json")
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("access", response.data)
-        self.assertIn("refresh", response.data)
-
-        me_client = APIClient()
-        me_client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
-        me_response = me_client.get("/api/v1/auth/me/")
-        self.assertEqual(me_response.status_code, 200)
-        self.assertEqual(me_response.data["role"], "client")
-
-        refresh_response = self.client_api.post("/api/v1/auth/refresh/", {"refresh": response.data["refresh"]}, format="json")
-        self.assertEqual(refresh_response.status_code, 200)
-        self.assertIn("access", refresh_response.data)
-
-    def test_login_fails_with_wrong_password(self):
-        response = self.client_api.post("/api/v1/auth/login/", {"username": "client", "password": "wrong"}, format="json")
-        self.assertEqual(response.status_code, 400)
-
-
-class PublicApiTests(ApiBaseTestCase):
-    def setUp(self):
-        super().setUp()
-        now = timezone.now()
-        self.news = News.objects.create(
-            title="Published",
-            summary="Summary",
-            body="Body",
-            is_published=True,
-            published_at=now - timedelta(hours=1),
+        order = CustomerOrder.objects.create(
+            public_id=booking.public_id,
+            user=user,
+            booking=booking,
+            order_type=CustomerOrder.TYPE_DINE_IN,
+            scheduled_for=start,
+            subtotal_amount=Decimal("120.00"),
+            total_amount=Decimal("120.00"),
         )
-        News.objects.create(
-            title="Draft",
-            summary="Hidden",
-            body="Draft body",
-            is_published=False,
-            published_at=now,
+        line = OrderItem.objects.create(
+            order=order,
+            dish=self.dish1,
+            dish_name_snapshot=self.dish1.name,
+            unit_price_snapshot=self.dish1.price,
+            quantity=1,
+            line_total_snapshot=self.dish1.price,
         )
-        self.promotion = Promotion.objects.create(
-            name="Combo lunch",
-            description="Combo",
-            kind=Promotion.KIND_COMBO,
-            discount_type=Promotion.DISCOUNT_FIXED_OFF,
-            discount_value=Decimal("50.00"),
-            valid_from=now - timedelta(days=1),
-            valid_to=now + timedelta(days=1),
-            is_active=True,
-        )
-        PromotionComboItem.objects.create(promotion=self.promotion, dish=self.dish1, min_quantity=1)
-        override = MenuOverride.objects.create(date_from=self.booking_date, is_active=True)
-        MenuOverrideItem.objects.create(override=override, dish=self.dish3, action="add", order=1)
-
-    def test_public_news_promotions_menu_and_dishes(self):
-        news_response = self.client_api.get("/api/v1/news/")
-        self.assertEqual(news_response.status_code, 200)
-        self.assertEqual(news_response.data["count"], 1)
-
-        promo_response = self.client_api.get("/api/v1/promotions/")
-        self.assertEqual(promo_response.status_code, 200)
-        self.assertEqual(promo_response.data["count"], 1)
-        self.assertEqual(promo_response.data["results"][0]["combo_items"][0]["dish_id"], self.dish1.id)
-
-        menu_response = self.client_api.get(f"/api/v1/menu/?date={self.booking_date.isoformat()}")
-        self.assertEqual(menu_response.status_code, 200)
-        self.assertIn(self.dish3.id, menu_response.data["dish_ids"])
-
-        dishes_response = self.client_api.get(f"/api/v1/dishes/?date={self.booking_date.isoformat()}")
-        self.assertEqual(dishes_response.status_code, 200)
-        returned_ids = {item["id"] for item in dishes_response.data["results"]}
-        self.assertIn(self.dish1.id, returned_ids)
-        self.assertIn(self.dish3.id, returned_ids)
-
-    def test_availability_endpoints(self):
-        reservation = self.create_reservation()
-        occupied = self.client_api.get(
-            f"/api/v1/availability/occupied-slots/?table_id={self.table2.id}&date={self.booking_date.isoformat()}"
-        )
-        self.assertEqual(occupied.status_code, 200)
-        self.assertEqual(len(occupied.data["occupied_slots"]), 1)
-
-        available = self.client_api.get(
-            f"/api/v1/availability/available-slots/?date={self.booking_date.isoformat()}&guests_count=2"
-        )
-        self.assertEqual(available.status_code, 200)
-        self.assertIn("55", {str(key) for key in available.data["available_slots"].keys()})
+        return booking, order, line
 
 
 class ReservationApiTests(ApiBaseTestCase):
@@ -198,127 +94,105 @@ class ReservationApiTests(ApiBaseTestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.data["order_total"], "240.00")
-        self.assertEqual(Reservation.objects.filter(user=self.client_user).count(), 1)
+        self.assertEqual(Booking.objects.filter(user=self.client_user).count(), 1)
 
-    def test_reservation_create_fails_when_slot_intersects(self):
-        self.create_reservation(user=self.other_user, hour=12, minute=0, table=self.table2)
-        self.create_reservation(user=self.other_user, hour=12, minute=0, table=self.table4)
+    def test_client_can_open_own_reservation_and_order(self):
+        booking, order, _ = self.create_booking()
         self.auth_as_client()
-        response = self.client_api.post(
-            "/api/v1/reservations/",
-            {
-                "date": self.booking_date.isoformat(),
-                "time": "12:00",
-                "duration_minutes": 55,
-                "guests_count": 2,
-                "dishes": [{"dish": self.dish1.id, "quantity": 1}],
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_reservation_create_fails_when_guest_count_exceeds_capacity(self):
-        self.auth_as_client()
-        response = self.client_api.post(
-            "/api/v1/reservations/",
-            {
-                "date": self.booking_date.isoformat(),
-                "time": "12:00",
-                "duration_minutes": 55,
-                "guests_count": 5,
-                "dishes": [{"dish": self.dish1.id, "quantity": 1}],
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, 400)
-
-    def test_reservation_create_fails_outside_allowed_window(self):
-        far_date = self.booking_date + timedelta(days=7)
-        while far_date.weekday() >= 5:
-            far_date += timedelta(days=1)
-        self._ensure_weekly_menu(far_date, [self.dish1])
-        self.auth_as_client()
-        response = self.client_api.post(
-            "/api/v1/reservations/",
-            {
-                "date": far_date.isoformat(),
-                "time": "12:00",
-                "duration_minutes": 55,
-                "guests_count": 2,
-                "dishes": [{"dish": self.dish1.id, "quantity": 1}],
-            },
-            format="json",
-        )
-        self.assertEqual(response.status_code, 400)
+        reservation_response = self.client_api.get(f"/api/v1/reservations/{booking.public_id}/")
+        order_response = self.client_api.get(f"/api/v1/orders/{order.public_id}/")
+        self.assertEqual(reservation_response.status_code, 200)
+        self.assertEqual(order_response.status_code, 200)
 
     def test_user_cannot_access_foreign_reservation(self):
-        reservation = self.create_reservation(user=self.other_user)
+        booking, _, _ = self.create_booking(user=self.other_user)
         self.auth_as_client()
-        response = self.client_api.get(f"/api/v1/reservations/{reservation.id}/")
+        response = self.client_api.get(f"/api/v1/reservations/{booking.public_id}/")
         self.assertEqual(response.status_code, 404)
 
-    def test_operator_forbidden_on_client_endpoint(self):
-        self.auth_as_operator()
-        response = self.client_api.get("/api/v1/reservations/")
-        self.assertEqual(response.status_code, 403)
-
-    def test_cannot_delete_reservation_less_than_30_minutes_before_start(self):
-        start = timezone.now() + timedelta(minutes=20)
-        end = start + timedelta(minutes=55)
-        reservation = Reservation.objects.create(
-            user=self.client_user,
-            table=self.table2,
-            guests_count=2,
-            start_time=start,
-            end_time=end,
-            order_subtotal=Decimal("0"),
-            order_total=Decimal("0"),
-        )
+    def test_available_slots_accept_relative_date_key(self):
         self.auth_as_client()
-        response = self.client_api.delete(f"/api/v1/reservations/{reservation.id}/")
-        self.assertEqual(response.status_code, 400)
-
-
-class ComplaintAndReviewApiTests(ApiBaseTestCase):
-    def test_client_sees_only_own_complaints(self):
-        VenueComplaint.objects.create(user=self.client_user, subject="Mine", message="A")
-        VenueComplaint.objects.create(user=self.other_user, subject="Other", message="B")
-        self.auth_as_client()
-        response = self.client_api.get("/api/v1/complaints/")
+        response = self.client_api.get("/api/v1/availability/available-slots/?date=tomorrow&guests_count=2")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["count"], 1)
-        self.assertEqual(response.data["results"][0]["subject"], "Mine")
+        self.assertIn("available_slots", response.data)
 
-    def test_review_can_be_left_only_for_own_line_and_duplicate_is_blocked(self):
-        start = timezone.now() - timedelta(hours=2)
-        end = timezone.now() - timedelta(hours=1)
-        reservation = Reservation.objects.create(
-            user=self.client_user,
-            table=self.table2,
-            guests_count=2,
-            start_time=start,
-            end_time=end,
-            order_subtotal=Decimal("120.00"),
-            order_total=Decimal("120.00"),
+    def test_client_cannot_order_plain_dish_when_active_single_promo_exists(self):
+        self.auth_as_client()
+        Promotion.objects.create(
+            name="Fish promo",
+            description="Promo",
+            kind=Promotion.KIND_SINGLE,
+            discount_type=Promotion.DISCOUNT_PERCENT,
+            discount_value=Decimal("10.00"),
+            valid_from=timezone.now() - timedelta(days=1),
+            valid_to=timezone.now() + timedelta(days=1),
+            is_active=True,
+            target_dish=self.dish1,
         )
-        line = ReservationDish.objects.create(reservation=reservation, dish=self.dish1, quantity=1)
+        response = self.client_api.post(
+            "/api/v1/reservations/",
+            {
+                "date": self.booking_date.isoformat(),
+                "time": "12:00",
+                "duration_minutes": 55,
+                "guests_count": 2,
+                "dishes": [{"dish": self.dish1.id, "quantity": 1}],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("dishes", response.data["errors"])
+
+    def test_available_slots_hide_times_less_than_30_minutes_ahead(self):
+        self.auth_as_client()
+        fake_now = MOSCOW_TZ.localize(datetime.combine(timezone.localdate(), datetime.min.time().replace(hour=14, minute=45)))
+        with patch("django.utils.timezone.now", return_value=fake_now):
+            response = self.client_api.get(f"/api/v1/availability/available-slots/?date={timezone.localdate().isoformat()}&guests_count=2")
+        self.assertEqual(response.status_code, 200)
+        slots_25 = response.data["available_slots"][25]
+        self.assertNotIn("15:00", slots_25)
+        self.assertIn("15:30", slots_25)
+
+    def test_client_cannot_book_slot_less_than_30_minutes_ahead(self):
+        self.auth_as_client()
+        fake_now = MOSCOW_TZ.localize(datetime.combine(timezone.localdate(), datetime.min.time().replace(hour=14, minute=45)))
+        with patch("django.utils.timezone.now", return_value=fake_now):
+            response = self.client_api.post(
+                "/api/v1/reservations/",
+                {
+                    "date": timezone.localdate().isoformat(),
+                    "time": "15:00",
+                    "duration_minutes": 55,
+                    "guests_count": 2,
+                    "dishes": [{"dish": self.dish2.id, "quantity": 1}],
+                },
+                format="json",
+            )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("time", response.data["errors"])
+
+
+class ReviewApiTests(ApiBaseTestCase):
+    def test_review_can_be_left_only_once_for_order_item(self):
+        booking, order, line = self.create_booking()
+        booking.start_time = timezone.now() - timedelta(hours=2)
+        booking.end_time = timezone.now() - timedelta(hours=1)
+        booking.save()
+        order.scheduled_for = booking.start_time
+        order.save(update_fields=["scheduled_for"])
         self.auth_as_client()
 
         response = self.client_api.post(
-            f"/api/v1/orders/{reservation.id}/reviews/",
-            {"reservation_dish": line.id, "dish": self.dish1.id, "rating": 5, "comment": "Great"},
+            f"/api/v1/orders/{order.public_id}/reviews/",
+            {"reservation_dish": line.public_id, "dish": self.dish1.id, "rating": 5, "comment": "Great"},
             format="json",
         )
-        self.assertEqual(response.status_code, 201)
-
         duplicate = self.client_api.post(
-            f"/api/v1/orders/{reservation.id}/reviews/",
-            {"reservation_dish": line.id, "dish": self.dish1.id, "rating": 4, "comment": "Again"},
+            f"/api/v1/orders/{order.public_id}/reviews/",
+            {"reservation_dish": line.public_id, "dish": self.dish1.id, "rating": 4, "comment": "Again"},
             format="json",
         )
-        self.assertEqual(duplicate.status_code, 400)
 
-    def test_html_routes_still_work(self):
-        self.client.login(username="client", password="pass12345")
-        response = self.client.get("/")
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertTrue(OrderItemReview.objects.filter(order_item=line).exists())

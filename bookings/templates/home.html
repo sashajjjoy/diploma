@@ -270,6 +270,32 @@
     {% else %}
         {% load user_tags %}
             {% if user|get_user_role == 'client' %}
+            {% if False %}
+            <div class="card" style="margin-bottom: 2rem;">
+                <h2 style="margin-bottom: 0.5rem;">Меню на сегодня</h2>
+                <p style="font-size: 0.95rem; color: #666; margin-bottom: 1rem;">На {{ today_menu_date|date:"d.m.Y" }}. У каждого блюда можно открыть отзывы.</p>
+                {% if today_menu_dishes %}
+                <div class="dishes-grid">
+                    {% for dish in today_menu_dishes %}
+                    <div class="dish-card">
+                        {% if dish.image %}
+                            <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
+                        {% else %}
+                            <div style="width: 100%; height: 150px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; margin-bottom: 0.75rem;">
+                                Нет изображения
+                            </div>
+                        {% endif %}
+                        <h4>{{ dish.name }}</h4>
+                        <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
+                        <div class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:15 }}</div>
+                        <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn">Отзывы</a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p>На сегодня блюда в меню пока не назначены.</p>
+                {% endif %}
+            </div>
             <!-- Форма бронирования для клиента -->
             <div class="card" style="margin-bottom: 2rem;">
                 <h2 style="margin-bottom: 1.5rem;">Бронирование столика</h2>
@@ -451,6 +477,9 @@
                                            min="0" 
                                            max="{{ dish.available_quantity }}">
                                 </div>
+                                <div style="margin-top: 0.75rem;">
+                                    <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn">Отзывы</a>
+                                </div>
                             </div>
                             {% endwith %}
                             {% endfor %}
@@ -536,6 +565,7 @@
             </div>
             {% endif %}
             
+        {% endif %}
         {% elif user|get_user_role == 'operator' %}
             <div class="info">
                 <h3>Добро пожаловать, оператор!</h3>
