@@ -15,6 +15,8 @@ class AdminCabinetAccessTests(TestCase):
         UserProfile.objects.create(user=self.admin_user, role='admin')
         self.client_user = User.objects.create_user('clienttest', password='testpass123')
         UserProfile.objects.create(user=self.client_user, role='client')
+        self.operator_user = User.objects.create_user('operatortest', password='testpass123')
+        UserProfile.objects.create(user=self.operator_user, role='operator')
 
     def test_admin_cabinet_ok_for_admin_role(self):
         self.client.login(username='admintest', password='testpass123')
@@ -31,6 +33,34 @@ class AdminCabinetAccessTests(TestCase):
         response = self.client.get('/dashboard/admin/cabinet/')
         self.assertEqual(response.status_code, 302)
         self.assertIn('login', response.url)
+
+    def test_admin_cabinet_shows_roles_and_user_management(self):
+        self.client.login(username='admintest', password='testpass123')
+        response = self.client.get('/dashboard/admin/cabinet/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Клиенты')
+        self.assertContains(response, 'Операторы')
+        self.assertContains(response, 'Логин')
+
+    def test_admin_can_update_username_and_role(self):
+        self.client.login(username='admintest', password='testpass123')
+        response = self.client.post(
+            '/dashboard/admin/cabinet/',
+            {
+                'user_id': self.client_user.id,
+                'username': 'client_renamed',
+                'first_name': 'Новый',
+                'last_name': 'Клиент',
+                'email': 'client@example.com',
+                'role': 'operator',
+                'is_active': 'on',
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.client_user.refresh_from_db()
+        self.assertEqual(self.client_user.username, 'client_renamed')
+        self.assertEqual(self.client_user.profile.role, 'operator')
 
 
 class ClientNavigationTests(TestCase):
@@ -150,6 +180,35 @@ class OperatorComplaintTests(TestCase):
         UserProfile.objects.create(user=self.operator, role='operator')
         UserProfile.objects.create(user=self.customer, role='client')
         VenueComplaint.objects.create(user=self.customer, subject='Тест', message='Сообщение', status='new')
+        self.table = Table.objects.create(table_number='T1', seats=2)
+        self.dish = Dish.objects.create(name='Борщ', price=Decimal('180.00'), available_quantity=10)
+        booking = Booking.objects.create(
+            user=self.customer,
+            table=self.table,
+            guests_count=2,
+            start_time=timezone.now() - timedelta(hours=2),
+            end_time=timezone.now() - timedelta(hours=1),
+        )
+        order = CustomerOrder.objects.create(
+            public_id=booking.public_id,
+            user=self.customer,
+            booking=booking,
+            order_type=CustomerOrder.TYPE_DINE_IN,
+            scheduled_for=booking.start_time,
+            status=CustomerOrder.STATUS_COMPLETED,
+            subtotal_amount=Decimal('180.00'),
+            total_amount=Decimal('180.00'),
+        )
+        item = OrderItem.objects.create(
+            order=order,
+            dish=self.dish,
+            dish_name_snapshot=self.dish.name,
+            unit_price_snapshot=self.dish.price,
+            quantity=1,
+            line_total_snapshot=self.dish.price,
+        )
+        from bookings.models import OrderItemReview
+        OrderItemReview.objects.create(order_item=item, rating=5, comment='Отлично')
 
     def test_operator_complaints_show_russian_statuses(self):
         self.client.login(username='operatorlabels', password='testpass123')
@@ -158,3 +217,11 @@ class OperatorComplaintTests(TestCase):
         self.assertContains(response, 'Новая')
         self.assertContains(response, 'Просмотрена')
         self.assertContains(response, 'Закрыта')
+
+    def test_operator_home_shows_complaints_and_reviews(self):
+        self.client.login(username='operatorlabels', password='testpass123')
+        response = self.client.get('/dashboard/operator/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Последние жалобы клиентов')
+        self.assertContains(response, 'Последние отзывы о блюдах')
+        self.assertContains(response, 'Борщ')

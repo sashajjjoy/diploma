@@ -4,42 +4,63 @@
 
 {% block extra_css %}
 <style>
-    .admin-kpi-grid {
+    .admin-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
         gap: 1rem;
         margin-bottom: 1.5rem;
     }
     .admin-kpi {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: #fff;
-        border-radius: 10px;
-        padding: 1rem 1.1rem;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+        background: linear-gradient(135deg, #667eea 0%, #4f63d6 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 1.1rem 1.2rem;
+        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.2);
     }
-    .admin-kpi .kpi-value {
-        font-size: 1.75rem;
+    .admin-kpi .value {
+        font-size: 1.9rem;
         font-weight: 700;
-        line-height: 1.2;
+        line-height: 1.1;
     }
-    .admin-kpi .kpi-label {
-        font-size: 0.85rem;
-        opacity: 0.92;
+    .admin-kpi .label {
         margin-top: 0.35rem;
+        opacity: 0.95;
     }
-    .admin-two-col {
+    .role-badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    .role-badge {
+        padding: 0.45rem 0.8rem;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3546a8;
+        font-weight: 600;
+    }
+    .user-form-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 1.5rem;
-        align-items: start;
+        grid-template-columns: 1.3fr 1fr 1fr 1.4fr 1fr auto auto;
+        gap: 0.75rem;
+        align-items: end;
     }
-    .role-pill {
-        display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 6px;
-        background: #e8eaf6;
-        font-size: 0.85rem;
-        margin-right: 0.35rem;
+    .user-form-grid .form-group {
+        margin-bottom: 0;
+    }
+    .user-row {
+        border-top: 1px solid #e9edf5;
+        padding-top: 1rem;
+        margin-top: 1rem;
+    }
+    @media (max-width: 1100px) {
+        .user-form-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    @media (max-width: 700px) {
+        .user-form-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -47,60 +68,116 @@
 {% block content %}
 <div class="card">
     <h2>Кабинет администратора</h2>
-    <p style="color: #5a6c7d;">Обзор системы: бронирования, жалобы, отзывы, остатки. Переходы в другие разделы — в шапке сайта.</p>
+    <p>Главная задача администратора здесь — управление пользователями и ролями. Жалобы и отзывы вынесены на рабочую главную оператора.</p>
 </div>
 
-<div class="admin-kpi-grid">
+<div class="admin-grid">
     <div class="admin-kpi">
-        <div class="kpi-value">{{ reservations_today }}</div>
-        <div class="kpi-label">Заказов / броней на сегодня</div>
+        <div class="value">{{ total_users }}</div>
+        <div class="label">Всего пользователей</div>
     </div>
     <div class="admin-kpi">
-        <div class="kpi-value">{{ reservations_active }}</div>
-        <div class="kpi-label">Сейчас активны</div>
+        <div class="value">{{ clients_total }}</div>
+        <div class="label">Клиенты</div>
     </div>
     <div class="admin-kpi">
-        <div class="kpi-value">{{ reservations_completed_week }}</div>
-        <div class="kpi-label">Завершено за 7 дней</div>
+        <div class="value">{{ operators_total }}</div>
+        <div class="label">Операторы</div>
     </div>
     <div class="admin-kpi">
-        <div class="kpi-value">{{ complaints_new }}</div>
-        <div class="kpi-label">Новых жалоб</div>
+        <div class="value">{{ admins_total }}</div>
+        <div class="label">Администраторы</div>
     </div>
     <div class="admin-kpi">
-        <div class="kpi-value">{{ reviews_total }}</div>
-        <div class="kpi-label">Отзывов о блюдах</div>
+        <div class="value">{{ reservations_today }}</div>
+        <div class="label">Бронирования сегодня</div>
+    </div>
+    <div class="admin-kpi">
+        <div class="value">{{ reservations_active }}</div>
+        <div class="label">Активны сейчас</div>
     </div>
 </div>
 
-<div class="card" style="margin-bottom: 1.5rem;">
-    <h3>Пользователи по ролям</h3>
-    {% if users_by_role %}
-    <p>
+<div class="card">
+    <h3>Роли в системе</h3>
+    <div class="role-badges">
         {% for row in users_by_role %}
-        <span class="role-pill">
-            {% if row.role == 'client' %}Клиенты{% elif row.role == 'operator' %}Операторы{% elif row.role == 'admin' %}Администраторы{% else %}{{ row.role }}{% endif %}: <strong>{{ row.n }}</strong>
+        <span class="role-badge">
+            {% if row.role == 'client' %}Клиенты{% elif row.role == 'operator' %}Операторы{% elif row.role == 'admin' %}Администраторы{% else %}{{ row.role }}{% endif %}: {{ row.n }}
         </span>
         {% endfor %}
+    </div>
+    <p style="margin-top: 1rem;">
+        <a href="/admin/" class="btn">Django Admin</a>
+        <a href="{% url 'operator_cabinet' %}" class="btn">Открыть кабинет оператора</a>
     </p>
-    {% else %}
-    <p>Нет данных.</p>
-    {% endif %}
+</div>
+
+<div class="card">
+    <h3>Управление аккаунтами</h3>
+    <p>Здесь можно менять логин, имя, email, активность пользователя и назначать роли клиенту, оператору или администратору.</p>
+    {% for managed_user in managed_users %}
+    <form method="post" class="user-row">
+        {% csrf_token %}
+        <input type="hidden" name="user_id" value="{{ managed_user.id }}">
+        <div class="user-form-grid">
+            <div class="form-group">
+                <label for="username_{{ managed_user.id }}">Логин</label>
+                <input class="form-control" id="username_{{ managed_user.id }}" name="username" value="{{ managed_user.username }}" required>
+            </div>
+            <div class="form-group">
+                <label for="first_name_{{ managed_user.id }}">Имя</label>
+                <input class="form-control" id="first_name_{{ managed_user.id }}" name="first_name" value="{{ managed_user.first_name }}">
+            </div>
+            <div class="form-group">
+                <label for="last_name_{{ managed_user.id }}">Фамилия</label>
+                <input class="form-control" id="last_name_{{ managed_user.id }}" name="last_name" value="{{ managed_user.last_name }}">
+            </div>
+            <div class="form-group">
+                <label for="email_{{ managed_user.id }}">Email</label>
+                <input class="form-control" id="email_{{ managed_user.id }}" name="email" value="{{ managed_user.email }}">
+            </div>
+            <div class="form-group">
+                <label for="role_{{ managed_user.id }}">Роль</label>
+                <select class="form-control" id="role_{{ managed_user.id }}" name="role">
+                    {% for role_value, role_label in role_choices %}
+                    <option value="{{ role_value }}" {% if managed_user.profile.role == role_value %}selected{% endif %}>{{ role_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="display:flex; gap:0.5rem; align-items:center; margin-top:2rem;">
+                    <input type="checkbox" name="is_active" {% if managed_user.is_active %}checked{% endif %}>
+                    <span>Активен</span>
+                </label>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn">Сохранить</button>
+            </div>
+        </div>
+    </form>
+    {% empty %}
+    <p>Пользователей пока нет.</p>
+    {% endfor %}
 </div>
 
 {% if dishes_low_stock %}
-<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #e65100;">
-    <h3>Мало на складе (&lt; {{ low_stock_threshold }} шт.)</h3>
+<div class="card">
+    <h3>Блюда с низким остатком</h3>
     <table>
         <thead>
-            <tr><th>Блюдо</th><th>Остаток</th><th></th></tr>
+            <tr>
+                <th>Блюдо</th>
+                <th>Остаток</th>
+                <th>Действие</th>
+            </tr>
         </thead>
         <tbody>
-            {% for d in dishes_low_stock %}
+            {% for dish in dishes_low_stock %}
             <tr>
-                <td>{{ d.name }}</td>
-                <td>{{ d.available_quantity }}</td>
-                <td><a href="{% url 'operator_dish_edit' d.pk %}" class="btn">Изменить</a></td>
+                <td>{{ dish.name }}</td>
+                <td>{{ dish.available_quantity }}</td>
+                <td><a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Исправить</a></td>
             </tr>
             {% endfor %}
         </tbody>
@@ -108,76 +185,31 @@
 </div>
 {% endif %}
 
-<div class="admin-two-col">
-    <div class="card">
-        <h3>Последние бронирования и заказы</h3>
-        {% if recent_reservations %}
-        <table>
-            <thead>
-                <tr><th>Начало</th><th>Тип</th><th>Клиент</th><th></th></tr>
-            </thead>
-            <tbody>
-                {% for r in recent_reservations %}
-                <tr>
-                    <td>{{ r.start_time|date:"d.m.Y H:i" }}</td>
-                    <td>{% if r.table %}Стол №{{ r.table.table_number }}{% else %}Вынос{% endif %}</td>
-                    <td>{{ r.user.get_full_name|default:r.user.username }}</td>
-                    <td><a href="{% url 'operator_reservation_detail' r.public_id|default:r.pk %}" class="btn">Открыть</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>Записей нет.</p>
-        {% endif %}
-        <p style="margin-top: 1rem;"><a href="{% url 'operator_reservations' %}" class="btn">Все бронирования</a></p>
-    </div>
-
-    <div class="card">
-        <h3>Последние жалобы</h3>
-        {% if recent_complaints %}
-        <table>
-            <thead>
-                <tr><th>Дата</th><th>Тема</th><th>Статус</th><th></th></tr>
-            </thead>
-            <tbody>
-                {% for c in recent_complaints %}
-                <tr>
-                    <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
-                    <td>{{ c.subject|truncatechars:40 }}</td>
-                    <td>{{ c.get_status_display }}</td>
-                    <td><a href="{% url 'operator_complaint_list' %}" class="btn">Список</a></td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>Жалоб нет.</p>
-        {% endif %}
-    </div>
-</div>
-
-<div class="card" style="margin-top: 1.5rem;">
-    <h3>Последние отзывы о блюдах</h3>
-    {% if recent_reviews %}
+<div class="card">
+    <h3>Последние бронирования</h3>
+    {% if recent_reservations %}
     <table>
         <thead>
-            <tr><th>Дата</th><th>Блюдо</th><th>Оценка</th><th>Автор</th></tr>
+            <tr>
+                <th>Начало</th>
+                <th>Столик</th>
+                <th>Клиент</th>
+                <th>Действие</th>
+            </tr>
         </thead>
         <tbody>
-            {% for rev in recent_reviews %}
+            {% for reservation in recent_reservations %}
             <tr>
-                <td>{{ rev.created_at|date:"d.m.Y H:i" }}</td>
-                <td>{{ rev.dish.name }}</td>
-                <td>{{ rev.rating }}★</td>
-                <td>{{ rev.user.username }}</td>
+                <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                <td>№{{ reservation.table.table_number }}</td>
+                <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
+                <td><a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Открыть</a></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     {% else %}
-    <p>Отзывов пока нет.</p>
+    <p>Бронирований пока нет.</p>
     {% endif %}
-    <p style="margin-top: 1rem;"><a href="/admin/bookings/orderitemreview/" class="btn btn-secondary-outline">Все отзывы в Django Admin</a></p>
 </div>
 {% endblock %}
