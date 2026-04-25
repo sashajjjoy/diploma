@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from django.contrib import messages
+from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -268,11 +269,41 @@ def reservation_delete(request, pk):
 @login_required
 @user_passes_test(is_admin_app, login_url="/")
 def admin_cabinet(request):
+    if request.method == "POST":
+        user_id = request.POST.get("user_id")
+        managed_user = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
+        profile, _ = UserProfile.objects.get_or_create(user=managed_user, defaults={"role": UserProfile.ROLE_CLIENT})
+        new_username = request.POST.get("username", "").strip()
+        if not new_username:
+            messages.error(request, "Логин не может быть пустым.")
+            return redirect("admin_cabinet")
+        username_exists = User.objects.exclude(pk=managed_user.pk).filter(username=new_username).exists()
+        if username_exists:
+            messages.error(request, "Пользователь с таким логином уже существует.")
+            return redirect("admin_cabinet")
+        new_role = request.POST.get("role", profile.role)
+        allowed_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
+        if new_role not in allowed_roles:
+            messages.error(request, "Выбрана недопустимая роль.")
+            return redirect("admin_cabinet")
+        managed_user.username = new_username
+        managed_user.first_name = request.POST.get("first_name", "").strip()
+        managed_user.last_name = request.POST.get("last_name", "").strip()
+        managed_user.email = request.POST.get("email", "").strip()
+        managed_user.is_active = request.POST.get("is_active") == "on"
+        managed_user.save(update_fields=["username", "first_name", "last_name", "email", "is_active"])
+        profile.role = new_role
+        profile.save(update_fields=["role"])
+        messages.success(request, f"Данные пользователя {managed_user.username} обновлены.")
+        return redirect("admin_cabinet")
+
     now = timezone.now()
     today_date = timezone.localtime(now).date()
     week_ago = now - timedelta(days=7)
     recent_reservations = booking_detail_queryset().order_by("-created_at")[:10]
-    recent_reviews = OrderItemReview.objects.select_related("order_item__order__user", "order_item__dish").order_by("-created_at")[:8]
+    for user in User.objects.all():
+        UserProfile.objects.get_or_create(user=user, defaults={"role": UserProfile.ROLE_CLIENT})
+    users = User.objects.select_related("profile").order_by("username")
     return render(
         request,
         "bookings/admin_cabinet.html",
@@ -280,13 +311,15 @@ def admin_cabinet(request):
             "reservations_today": Booking.objects.filter(start_time__date=today_date).count(),
             "reservations_active": Booking.objects.exclude(status=Booking.STATUS_CANCELLED).filter(start_time__lte=now, end_time__gte=now).count(),
             "reservations_completed_week": Booking.objects.filter(end_time__lt=now, end_time__gte=week_ago).count(),
-            "complaints_new": VenueComplaint.objects.filter(status="new").count(),
-            "reviews_total": OrderItemReview.objects.count(),
+            "total_users": users.count(),
+            "clients_total": UserProfile.objects.filter(role=UserProfile.ROLE_CLIENT).count(),
+            "operators_total": UserProfile.objects.filter(role=UserProfile.ROLE_OPERATOR).count(),
+            "admins_total": UserProfile.objects.filter(role=UserProfile.ROLE_ADMIN).count(),
             "dishes_low_stock": list(Dish.objects.filter(available_quantity__lt=LOW_STOCK_THRESHOLD).order_by("available_quantity", "name")[:12]),
             "users_by_role": list(UserProfile.objects.values("role").annotate(n=Count("id")).order_by("role")),
             "recent_reservations": recent_reservations,
-            "recent_complaints": VenueComplaint.objects.select_related("user").order_by("-created_at")[:8],
-            "recent_reviews": recent_reviews,
+            "managed_users": users,
+            "role_choices": UserProfile.ROLE_CHOICES,
             "low_stock_threshold": LOW_STOCK_THRESHOLD,
         },
     )
@@ -302,6 +335,11 @@ def operator_cabinet(request):
             "reservations": booking_detail_queryset().order_by("-start_time")[:20],
             "tables": Table.objects.all().order_by("table_number"),
             "dishes": Dish.objects.all().order_by("name"),
+            "complaints_new": VenueComplaint.objects.filter(status="new").count(),
+            "complaints_total": VenueComplaint.objects.count(),
+            "reviews_total": OrderItemReview.objects.count(),
+            "recent_complaints": VenueComplaint.objects.select_related("user").order_by("-created_at")[:8],
+            "recent_reviews": OrderItemReview.objects.select_related("order_item__order__user", "order_item__dish").order_by("-created_at")[:8],
         },
     )
 

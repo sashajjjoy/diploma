@@ -145,9 +145,10 @@ class ReservationApiTests(ApiBaseTestCase):
 
     def test_available_slots_hide_times_less_than_30_minutes_ahead(self):
         self.auth_as_client()
-        fake_now = MOSCOW_TZ.localize(datetime.combine(timezone.localdate(), datetime.min.time().replace(hour=14, minute=45)))
+        target_date = self._next_weekday(timezone.localdate() - timedelta(days=1))
+        fake_now = MOSCOW_TZ.localize(datetime.combine(target_date, datetime.min.time().replace(hour=14, minute=45)))
         with patch("django.utils.timezone.now", return_value=fake_now):
-            response = self.client_api.get(f"/api/v1/availability/available-slots/?date={timezone.localdate().isoformat()}&guests_count=2")
+            response = self.client_api.get(f"/api/v1/availability/available-slots/?date={target_date.isoformat()}&guests_count=2")
         self.assertEqual(response.status_code, 200)
         slots_25 = response.data["available_slots"][25]
         self.assertNotIn("15:00", slots_25)
@@ -155,12 +156,13 @@ class ReservationApiTests(ApiBaseTestCase):
 
     def test_client_cannot_book_slot_less_than_30_minutes_ahead(self):
         self.auth_as_client()
-        fake_now = MOSCOW_TZ.localize(datetime.combine(timezone.localdate(), datetime.min.time().replace(hour=14, minute=45)))
+        target_date = self._next_weekday(timezone.localdate() - timedelta(days=1))
+        fake_now = MOSCOW_TZ.localize(datetime.combine(target_date, datetime.min.time().replace(hour=14, minute=45)))
         with patch("django.utils.timezone.now", return_value=fake_now):
             response = self.client_api.post(
                 "/api/v1/reservations/",
                 {
-                    "date": timezone.localdate().isoformat(),
+                    "date": target_date.isoformat(),
                     "time": "15:00",
                     "duration_minutes": 55,
                     "guests_count": 2,
