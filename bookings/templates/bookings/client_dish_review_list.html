@@ -1,60 +1,65 @@
 {% extends "base.html" %}
+
 {% block title %}Отзывы: {{ dish.name }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Отзывы о блюде: {{ dish.name }}</h2>
-    <p>
+<section class="card hero-card">
+    <div class="page-kicker">Отзывы</div>
+    <h1 class="page-title">Отзывы о блюде: {{ dish.name }}</h1>
+    <p class="page-subtitle">
         {% if avg_rating %}
-        Средняя оценка: <strong>{{ avg_rating|floatformat:1 }}</strong> / 5
+            Средняя оценка: <strong>{{ avg_rating|floatformat:1 }}</strong> / 5
         {% else %}
-        У этого блюда пока нет оценок.
+            У этого блюда пока нет оценок.
         {% endif %}
+        Всего отзывов: {{ reviews_count }}.
     </p>
-    <p>Всего отзывов: {{ reviews_count }}</p>
 
     {% if eligible_reviews %}
-    <div style="margin: 1rem 0;">
-        <h3 style="margin-bottom: 0.75rem;">Можно оставить отзыв</h3>
+    <div class="panel-actions">
         {% for option in eligible_reviews %}
-        <a href="{% url 'client_dish_review_create' option.order.public_id|default:option.order.pk option.line.public_id|default:option.line.pk %}" class="btn btn-success" style="margin-right: 0.75rem;">
-            Заказ №{{ option.order.public_id|default:option.order.pk }}
+        <a href="{% url 'client_dish_review_create' option.order.public_id|default:option.order.pk option.line.public_id|default:option.line.pk %}" class="btn btn-success">
+            Оставить отзыв к заказу №{{ option.order.public_id|default:option.order.pk }}
         </a>
         {% endfor %}
     </div>
     {% endif %}
 
-    {% if request.GET.next %}
-    <a href="{{ request.GET.next }}" class="btn">Назад</a>
-    {% else %}
-    <a href="{% url 'home' %}" class="btn">На главную</a>
-    {% endif %}
-</div>
+    <div class="panel-actions">
+        {% if request.GET.next %}
+            <a href="{{ request.GET.next }}" class="btn btn-secondary">Назад</a>
+        {% else %}
+            <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
+        {% endif %}
+    </div>
+</section>
 
-<div class="card">
+<section class="card">
     {% if reviews %}
-    <table>
-        <thead>
-            <tr>
-                <th>Автор</th>
-                <th>Оценка</th>
-                <th>Комментарий</th>
-                <th>Дата</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for review in reviews %}
-            <tr>
-                <td>{{ review.user.username }}</td>
-                <td>{{ review.rating }}/5</td>
-                <td>{{ review.comment|default:"Без комментария" }}</td>
-                <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Автор</th>
+                    <th>Оценка</th>
+                    <th>Комментарий</th>
+                    <th>Дата</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>{{ review.user.username }}</td>
+                    <td><span class="pill">{{ review.rating }}/5</span></td>
+                    <td>{{ review.comment|default:"Без комментария" }}</td>
+                    <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <p>Пока никто не оставил отзывов на это блюдо.</p>
+    <div class="empty-state">Пока никто не оставил отзывов на это блюдо.</div>
     {% endif %}
-</div>
+</section>
 {% endblock %}

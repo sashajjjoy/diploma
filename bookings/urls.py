@@ -6,6 +6,14 @@ urlpatterns = [
     # Общие
     path('', views.dashboard, name='dashboard'),
     path('admin/cabinet/', views_booking.admin_cabinet, name='admin_cabinet'),
+    path('admin/integrations/', views_booking.admin_integrations, name='admin_integrations'),
+    path('admin/integrations/<int:pk>/delete/', views_booking.admin_integration_delete, name='admin_integration_delete'),
+    path('admin/integrations/<int:pk>/test/', views_booking.admin_integration_test, name='admin_integration_test'),
+    path('admin/security/', views_booking.admin_security, name='admin_security'),
+    path('admin/backups/', views_booking.admin_backups, name='admin_backups'),
+    path('admin/backups/<int:pk>/download/', views_booking.admin_backup_download, name='admin_backup_download'),
+    path('admin/backups/<int:pk>/restore/', views_booking.admin_backup_restore, name='admin_backup_restore'),
+    path('admin/reports/', views_booking.admin_reports, name='admin_reports'),
     
     # API для получения занятых временных слотов
     path('api/occupied-slots/', views_booking.get_occupied_time_slots, name='get_occupied_time_slots'),
@@ -22,6 +30,8 @@ urlpatterns = [
     path('operator/reservations/', views_booking.operator_reservations, name='operator_reservations'),
     path('operator/reservations/<int:pk>/', views_booking.operator_reservation_detail, name='operator_reservation_detail'),
     path('operator/reservations/<int:pk>/delete/', views_booking.operator_reservation_delete, name='operator_reservation_delete'),
+    path('operator/service-slots/', views_booking.operator_service_slots, name='operator_service_slots'),
+    path('operator/reports/', views_booking.operator_reports, name='operator_reports'),
     
     # Управление столиками (оператор)
     path('operator/tables/', views.operator_tables, name='operator_tables'),

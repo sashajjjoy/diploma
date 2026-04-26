@@ -1,20 +1,29 @@
 {% extends "base.html" %}
+
 {% block title %}Жалоба{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Жалоба на заведение</h2>
-    <form method="post">
+<section class="card hero-card">
+    <div class="page-kicker">Обратная связь</div>
+    <h1 class="page-title">Жалоба на заведение</h1>
+    <p class="page-subtitle">Опиши проблему подробно: тема, ситуация и любые детали, которые помогут оператору быстрее отреагировать.</p>
+</section>
+
+<section class="card">
+    <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-group">
-            <label>Тема</label>
-            <input type="text" name="subject" required style="width:100%;max-width:480px;padding:0.5rem;">
+            <label for="subject">Тема</label>
+            <input type="text" id="subject" name="subject" class="form-control" required>
         </div>
         <div class="form-group">
-            <label>Текст</label>
-            <textarea name="message" rows="6" required style="width:100%;max-width:640px;padding:0.5rem;"></textarea>
+            <label for="message">Текст обращения</label>
+            <textarea id="message" name="message" rows="6" class="form-control" required></textarea>
         </div>
-        <button type="submit" class="btn btn-success">Отправить</button>
-        <a href="{% url 'client_complaint_list' %}" class="btn">Мои жалобы</a>
+        <div class="panel-actions">
+            <button type="submit" class="btn btn-success">Отправить</button>
+            <a href="{% url 'client_complaint_list' %}" class="btn btn-secondary">Мои жалобы</a>
+        </div>
     </form>
-</div>
+</section>
 {% endblock %}

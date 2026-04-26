@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}Безопасность{% endblock %}
+
+{% block content %}
+<section class="card hero-card">
+    <div class="page-kicker">Безопасность</div>
+    <h1 class="page-title">Настройки безопасности</h1>
+    <p class="page-subtitle">Таймаут сессии, блокировка после неудачных входов и просмотр истории попыток входа собраны в одном строгом административном экране.</p>
+</section>
+
+<section class="card">
+    <form method="post" class="stack-md">
+        {% csrf_token %}
+        <div class="form-grid form-grid-3">
+            <div class="form-group">
+                <label for="session_timeout_minutes">Таймаут сессии, минут</label>
+                <input class="form-control" type="number" min="1" id="session_timeout_minutes" name="session_timeout_minutes" value="{{ security_settings.session_timeout_minutes }}">
+            </div>
+            <div class="form-group">
+                <label for="max_failed_login_attempts">Максимум неудачных входов</label>
+                <input class="form-control" type="number" min="1" id="max_failed_login_attempts" name="max_failed_login_attempts" value="{{ security_settings.max_failed_login_attempts }}">
+            </div>
+            <div class="form-group">
+                <label for="login_lockout_minutes">Блокировка, минут</label>
+                <input class="form-control" type="number" min="1" id="login_lockout_minutes" name="login_lockout_minutes" value="{{ security_settings.login_lockout_minutes }}">
+            </div>
+        </div>
+        <div class="card card-soft">
+            <label style="display:flex; gap:0.6rem; align-items:center; margin-bottom: 0.85rem;">
+                <input type="checkbox" name="lockout_enabled" {% if security_settings.lockout_enabled %}checked{% endif %}>
+                <span>Включить блокировку после неудачных входов</span>
+            </label>
+            <label style="display:flex; gap:0.6rem; align-items:center; margin: 0;">
+                <input type="checkbox" name="force_password_change_after_admin_reset" {% if security_settings.force_password_change_after_admin_reset %}checked{% endif %}>
+                <span>Требовать смену временного пароля после админского сброса</span>
+            </label>
+        </div>
+        <div class="panel-actions">
+            <button type="submit" class="btn">Сохранить</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h3>История попыток входа</h3>
+    {% if login_attempts %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Логин</th>
+                    <th>Неудачных попыток</th>
+                    <th>Последняя ошибка</th>
+                    <th>Блокировка до</th>
+                    <th>IP</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for attempt in login_attempts %}
+                <tr>
+                    <td>{{ attempt.username }}</td>
+                    <td>{{ attempt.failed_attempts }}</td>
+                    <td>{{ attempt.last_failed_at|date:"d.m.Y H:i"|default:"—" }}</td>
+                    <td>{{ attempt.locked_until|date:"d.m.Y H:i"|default:"—" }}</td>
+                    <td>{{ attempt.last_ip|default:"—" }}</td>
+                    <td>
+                        <form method="post" style="margin: 0;">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="unlock">
+                            <input type="hidden" name="attempt_id" value="{{ attempt.pk }}">
+                            <button type="submit" class="btn btn-secondary">Разблокировать</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">История блокировок пока пустая.</div>
+    {% endif %}
+</section>
+{% endblock %}

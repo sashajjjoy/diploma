@@ -2,125 +2,56 @@
 
 {% block title %}Кабинет администратора{% endblock %}
 
-{% block extra_css %}
-<style>
-    .admin-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    .admin-kpi {
-        background: linear-gradient(135deg, #667eea 0%, #4f63d6 100%);
-        color: white;
-        border-radius: 12px;
-        padding: 1.1rem 1.2rem;
-        box-shadow: 0 4px 14px rgba(102, 126, 234, 0.2);
-    }
-    .admin-kpi .value {
-        font-size: 1.9rem;
-        font-weight: 700;
-        line-height: 1.1;
-    }
-    .admin-kpi .label {
-        margin-top: 0.35rem;
-        opacity: 0.95;
-    }
-    .role-badges {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-    }
-    .role-badge {
-        padding: 0.45rem 0.8rem;
-        border-radius: 999px;
-        background: #eef2ff;
-        color: #3546a8;
-        font-weight: 600;
-    }
-    .user-form-grid {
-        display: grid;
-        grid-template-columns: 1.3fr 1fr 1fr 1.4fr 1fr auto auto;
-        gap: 0.75rem;
-        align-items: end;
-    }
-    .user-form-grid .form-group {
-        margin-bottom: 0;
-    }
-    .user-row {
-        border-top: 1px solid #e9edf5;
-        padding-top: 1rem;
-        margin-top: 1rem;
-    }
-    @media (max-width: 1100px) {
-        .user-form-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-    }
-    @media (max-width: 700px) {
-        .user-form-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="card">
-    <h2>Кабинет администратора</h2>
-    <p>Главная задача администратора здесь — управление пользователями и ролями. Жалобы и отзывы вынесены на рабочую главную оператора.</p>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Панель администратора</div>
+    <h1 class="page-title">Кабинет администратора</h1>
+    <p class="page-subtitle">Управление пользователями и ролями, интеграциями, безопасностью, резервными копиями и административной аналитикой собрано в едином системном центре.</p>
+    <div class="panel-actions">
+        <a href="{% url 'admin_integrations' %}" class="btn">Интеграции</a>
+        <a href="{% url 'admin_security' %}" class="btn btn-secondary">Безопасность</a>
+        <a href="{% url 'admin_backups' %}" class="btn btn-secondary">Резервные копии</a>
+        <a href="{% url 'admin_reports' %}" class="btn btn-secondary">Отчёты</a>
+    </div>
+</section>
 
-<div class="admin-grid">
-    <div class="admin-kpi">
-        <div class="value">{{ total_users }}</div>
-        <div class="label">Всего пользователей</div>
-    </div>
-    <div class="admin-kpi">
-        <div class="value">{{ clients_total }}</div>
-        <div class="label">Клиенты</div>
-    </div>
-    <div class="admin-kpi">
-        <div class="value">{{ operators_total }}</div>
-        <div class="label">Операторы</div>
-    </div>
-    <div class="admin-kpi">
-        <div class="value">{{ admins_total }}</div>
-        <div class="label">Администраторы</div>
-    </div>
-    <div class="admin-kpi">
-        <div class="value">{{ reservations_today }}</div>
-        <div class="label">Бронирования сегодня</div>
-    </div>
-    <div class="admin-kpi">
-        <div class="value">{{ reservations_active }}</div>
-        <div class="label">Активны сейчас</div>
-    </div>
-</div>
+<section class="admin-grid">
+    <div class="admin-kpi"><div class="value">{{ total_users }}</div><div class="stats-label">Всего пользователей</div></div>
+    <div class="admin-kpi"><div class="value">{{ clients_total }}</div><div class="stats-label">Клиенты</div></div>
+    <div class="admin-kpi"><div class="value">{{ operators_total }}</div><div class="stats-label">Операторы</div></div>
+    <div class="admin-kpi"><div class="value">{{ admins_total }}</div><div class="stats-label">Администраторы</div></div>
+    <div class="admin-kpi"><div class="value">{{ integrations_total }}</div><div class="stats-label">Интеграции</div></div>
+    <div class="admin-kpi"><div class="value">{{ backups_total }}</div><div class="stats-label">Резервные копии</div></div>
+</section>
 
-<div class="card">
-    <h3>Роли в системе</h3>
-    <div class="role-badges">
+<section class="card">
+    <div class="section-head">
+        <div>
+            <h3>Роли в системе</h3>
+            <p class="page-subtitle">Сводка по распределению ролей между учётными записями.</p>
+        </div>
+    </div>
+    <div class="panel-actions">
         {% for row in users_by_role %}
-        <span class="role-badge">
-            {% if row.role == 'client' %}Клиенты{% elif row.role == 'operator' %}Операторы{% elif row.role == 'admin' %}Администраторы{% else %}{{ row.role }}{% endif %}: {{ row.n }}
-        </span>
+            <span class="pill">
+                {% if row.role == 'client' %}Клиенты{% elif row.role == 'operator' %}Операторы{% elif row.role == 'admin' %}Администраторы{% else %}{{ row.role }}{% endif %}: {{ row.n }}
+            </span>
         {% endfor %}
     </div>
-    <p style="margin-top: 1rem;">
-        <a href="/admin/" class="btn">Django Admin</a>
-        <a href="{% url 'operator_cabinet' %}" class="btn">Открыть кабинет оператора</a>
-    </p>
-</div>
+</section>
 
-<div class="card">
-    <h3>Управление аккаунтами</h3>
-    <p>Здесь можно менять логин, имя, email, активность пользователя и назначать роли клиенту, оператору или администратору.</p>
+<section class="card">
+    <div class="section-head">
+        <div>
+            <h3>Управление аккаунтами</h3>
+            <p class="page-subtitle">Можно менять логин, имя, фамилию, email, телефон, активность и роль. Последнего активного администратора система не даст отключить или разжаловать.</p>
+        </div>
+    </div>
     {% for managed_user in managed_users %}
-    <form method="post" class="user-row">
+    <form method="post" class="card card-soft">
         {% csrf_token %}
         <input type="hidden" name="user_id" value="{{ managed_user.id }}">
-        <div class="user-form-grid">
+        <div class="form-grid form-grid-4">
             <div class="form-group">
                 <label for="username_{{ managed_user.id }}">Логин</label>
                 <input class="form-control" id="username_{{ managed_user.id }}" name="username" value="{{ managed_user.username }}" required>
@@ -138,6 +69,10 @@
                 <input class="form-control" id="email_{{ managed_user.id }}" name="email" value="{{ managed_user.email }}">
             </div>
             <div class="form-group">
+                <label for="phone_{{ managed_user.id }}">Телефон</label>
+                <input class="form-control" id="phone_{{ managed_user.id }}" name="phone" value="{{ managed_user.profile.phone|default:'' }}">
+            </div>
+            <div class="form-group">
                 <label for="role_{{ managed_user.id }}">Роль</label>
                 <select class="form-control" id="role_{{ managed_user.id }}" name="role">
                     {% for role_value, role_label in role_choices %}
@@ -146,7 +81,7 @@
                 </select>
             </div>
             <div class="form-group">
-                <label style="display:flex; gap:0.5rem; align-items:center; margin-top:2rem;">
+                <label style="display:flex; align-items:center; gap:0.6rem; margin-top: 2rem;">
                     <input type="checkbox" name="is_active" {% if managed_user.is_active %}checked{% endif %}>
                     <span>Активен</span>
                 </label>
@@ -157,59 +92,63 @@
         </div>
     </form>
     {% empty %}
-    <p>Пользователей пока нет.</p>
+    <div class="empty-state">Пользователей пока нет.</div>
     {% endfor %}
-</div>
+</section>
+
+<section class="card">
+    <h3>Сводка по системе</h3>
+    {% if recent_reservations %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Начало</th>
+                    <th>Столик</th>
+                    <th>Клиент</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reservation in recent_reservations %}
+                <tr>
+                    <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>№{{ reservation.table.table_number }}</td>
+                    <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
+                    <td><span class="pill">{{ reservation.get_status_display }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Бронирований пока нет.</div>
+    {% endif %}
+</section>
 
 {% if dishes_low_stock %}
-<div class="card">
-    <h3>Блюда с низким остатком</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Блюдо</th>
-                <th>Остаток</th>
-                <th>Действие</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for dish in dishes_low_stock %}
-            <tr>
-                <td>{{ dish.name }}</td>
-                <td>{{ dish.available_quantity }}</td>
-                <td><a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Исправить</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<section class="card">
+    <h3>Низкие остатки</h3>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Блюдо</th>
+                    <th>Остаток</th>
+                    <th>Порог</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for dish in dishes_low_stock %}
+                <tr>
+                    <td>{{ dish.name }}</td>
+                    <td>{{ dish.available_quantity }}</td>
+                    <td>{{ low_stock_threshold }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endif %}
-
-<div class="card">
-    <h3>Последние бронирования</h3>
-    {% if recent_reservations %}
-    <table>
-        <thead>
-            <tr>
-                <th>Начало</th>
-                <th>Столик</th>
-                <th>Клиент</th>
-                <th>Действие</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for reservation in recent_reservations %}
-            <tr>
-                <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
-                <td>№{{ reservation.table.table_number }}</td>
-                <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
-                <td><a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Открыть</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p>Бронирований пока нет.</p>
-    {% endif %}
-</div>
 {% endblock %}

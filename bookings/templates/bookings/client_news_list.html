@@ -1,17 +1,26 @@
 {% extends "base.html" %}
+
 {% block title %}Новости{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Новости</h2>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Лента новостей</div>
+    <h1 class="page-title">Новости столовой</h1>
+    <p class="page-subtitle">Обновления меню, новости сервиса, изменения графика и свежие объявления для посетителей корпоративной столовой.</p>
+</section>
+
 {% for n in news_list %}
-<div class="card">
+<section class="card news-card">
     <h3><a href="{% url 'client_news_detail' n.pk %}">{{ n.title }}</a></h3>
-    <p style="color:#666;font-size:0.9rem;">{{ n.published_at|date:"d.m.Y H:i" }}</p>
+    <p class="note">{{ n.published_at|date:"d.m.Y H:i" }}</p>
     {% if n.summary %}<p>{{ n.summary }}</p>{% endif %}
-    <a href="{% url 'client_news_detail' n.pk %}" class="btn">Читать</a>
-</div>
+    <div class="panel-actions">
+        <a href="{% url 'client_news_detail' n.pk %}" class="btn">Читать полностью</a>
+    </div>
+</section>
 {% empty %}
-<div class="card"><p>Новостей пока нет.</p></div>
+<section class="card">
+    <div class="empty-state">Новостей пока нет.</div>
+</section>
 {% endfor %}
 {% endblock %}

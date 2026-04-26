@@ -1,21 +1,40 @@
 {% extends "base.html" %}
+
 {% block title %}Акции{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Действующие акции</h2>
-    <p>Акцию можно выбрать при оформлении бронирования или заказа на вынос на главной странице. Здесь показаны только предложения, по которым сейчас хватает блюд на складе.</p>
-    <a href="{% url 'home' %}" class="btn">На главную</a>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Акции</div>
+    <h1 class="page-title">Действующие акции</h1>
+    <p class="page-subtitle">Акции и комбо применяются при оформлении бронирования или заказа на вынос. Ниже показаны только предложения, по которым сейчас хватает доступных блюд.</p>
+    <div class="panel-actions">
+        <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
+    </div>
+</section>
+
 {% for p in promotions %}
-<div class="card">
+<section class="card">
     <h3>{{ p.name }}</h3>
-    <p>{% if p.discount_type == 'percent' %}Скидка {{ p.discount_value }}%{% else %}Скидка {{ p.discount_value }} ₽{% endif %}
-        {% if p.kind == 'single_dish' and p.target_dish %} на блюдо «{{ p.target_dish.name }}»{% elif p.kind == 'combo' %} на комбо-набор{% endif %}
+    <p class="page-subtitle">
+        {% if p.discount_type == 'percent' %}
+            Скидка {{ p.discount_value }}%
+        {% else %}
+            Скидка {{ p.discount_value }} ₽
+        {% endif %}
+        {% if p.kind == 'single_dish' and p.target_dish %}
+            на блюдо «{{ p.target_dish.name }}»
+        {% elif p.kind == 'combo' %}
+            на комбо-набор
+        {% endif %}
     </p>
-    {% if p.description %}<p>{{ p.description|linebreaksbr }}</p>{% endif %}
-    <p style="font-size:0.9rem;color:#666;">С {{ p.valid_from|date:"d.m.Y H:i" }} по {{ p.valid_to|date:"d.m.Y H:i" }}</p>
-</div>
+    {% if p.description %}
+        <p>{{ p.description|linebreaksbr }}</p>
+    {% endif %}
+    <div class="pill">С {{ p.valid_from|date:"d.m.Y H:i" }} по {{ p.valid_to|date:"d.m.Y H:i" }}</div>
+</section>
 {% empty %}
-<div class="card"><p>Сейчас нет активных акций.</p></div>
+<section class="card">
+    <div class="empty-state">Сейчас нет активных акций.</div>
+</section>
 {% endfor %}
 {% endblock %}

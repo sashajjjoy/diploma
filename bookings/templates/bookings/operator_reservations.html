@@ -1,49 +1,52 @@
 {% extends "base.html" %}
 
-{% block title %}Бронирования - Оператор{% endblock %}
+{% block title %}Бронирования — оператор{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Все бронирования</h2>
-    
-    <form method="get" style="margin-bottom: 1.5rem;">
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
-            <div class="form-group">
-                <label for="table">Столик:</label>
-                <select name="table" id="table" class="form-control">
-                    <option value="">Все</option>
-                    {% for table in tables %}
-                        <option value="{{ table.pk }}" {% if request.GET.table == table.pk|stringformat:"s" %}selected{% endif %}>
-                            №{{ table.table_number }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="client">Пользователь:</label>
-                <select name="client" id="client" class="form-control">
-                    <option value="">Все</option>
-                    {% for client in clients %}
-                        <option value="{{ client.pk }}" {% if request.GET.client == client.pk|stringformat:"s" %}selected{% endif %}>
-                            {{ client.get_full_name|default:client.username }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group">
-                <label for="date_from">С даты:</label>
-                <input type="date" name="date_from" id="date_from" class="form-control" value="{{ request.GET.date_from }}">
-            </div>
-            <div class="form-group">
-                <label for="date_to">По дату:</label>
-                <input type="date" name="date_to" id="date_to" class="form-control" value="{{ request.GET.date_to }}">
-            </div>
+<section class="card hero-card">
+    <div class="page-kicker">Бронирования</div>
+    <h1 class="page-title">Все бронирования</h1>
+    <p class="page-subtitle">Фильтруй список по столику, клиенту и диапазону дат. Внешний сценарий работы остался прежним, обновился только визуальный уровень.</p>
+</section>
+
+<section class="card">
+    <form method="get" class="form-grid form-grid-4">
+        <div class="form-group">
+            <label for="table">Столик</label>
+            <select name="table" id="table" class="form-control">
+                <option value="">Все</option>
+                {% for table in tables %}
+                    <option value="{{ table.pk }}" {% if request.GET.table == table.pk|stringformat:"s" %}selected{% endif %}>№{{ table.table_number }}</option>
+                {% endfor %}
+            </select>
         </div>
-        <button type="submit" class="btn">Применить фильтры</button>
-        <a href="{% url 'operator_reservations' %}" class="btn">Сбросить</a>
+        <div class="form-group">
+            <label for="client">Пользователь</label>
+            <select name="client" id="client" class="form-control">
+                <option value="">Все</option>
+                {% for client in clients %}
+                    <option value="{{ client.pk }}" {% if request.GET.client == client.pk|stringformat:"s" %}selected{% endif %}>{{ client.get_full_name|default:client.username }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="date_from">С даты</label>
+            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="form-group">
+            <label for="date_to">По дату</label>
+            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ request.GET.date_to }}">
+        </div>
+        <div class="panel-actions">
+            <button type="submit" class="btn">Применить фильтры</button>
+            <a href="{% url 'operator_reservations' %}" class="btn btn-secondary">Сбросить</a>
+        </div>
     </form>
-    
+</section>
+
+<section class="card">
     {% if reservations %}
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
@@ -65,44 +68,40 @@
                     <td>
                         {% now "Y-m-d H:i:s" as now_str %}
                         {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
-                            <span style="color: gray;">Завершено</span>
+                            <span class="status-badge status-completed">Завершено</span>
                         {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
-                            <span style="color: green;">Активно</span>
+                            <span class="status-badge status-active">Активно</span>
                         {% else %}
-                            <span style="color: blue;">Запланировано</span>
+                            <span class="status-badge status-planned">Запланировано</span>
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Просмотр</a>
-                        <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить</a>
+                        <div class="inline-actions">
+                            <a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn btn-secondary">Просмотр</a>
+                            <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger">Удалить</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        
-        {% if page_obj.has_other_pages %}
-        <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
-            {% if page_obj.has_previous %}
-                <a href="?page=1{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn">« Первая</a>
-                <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn">‹ Предыдущая</a>
-            {% endif %}
-            
-            <span style="padding: 0.5rem 1rem;">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-            
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn">Следующая ›</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn">Последняя »</a>
-            {% endif %}
-        </div>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn btn-secondary">« Первая</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn btn-secondary">‹ Предыдущая</a>
         {% endif %}
-    {% else %}
-        <p>Бронирования не найдены</p>
+        <span class="pagination__summary">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn btn-secondary">Следующая ›</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}{% if request.GET.client %}&client={{ request.GET.client }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}" class="btn btn-secondary">Последняя »</a>
+        {% endif %}
+    </div>
     {% endif %}
-</div>
+    {% else %}
+    <div class="empty-state">Бронирования не найдены.</div>
+    {% endif %}
+</section>
 {% endblock %}
-
-
-
-
-

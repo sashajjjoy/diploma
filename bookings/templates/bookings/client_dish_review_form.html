@@ -1,15 +1,20 @@
 {% extends "base.html" %}
+
 {% block title %}Отзыв: {{ line.dish.name }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Отзыв: {{ line.dish.name }}</h2>
-    <p>Заказ №{{ reservation.public_id|default:reservation.pk }}</p>
-    <form method="post">
+<section class="card hero-card">
+    <div class="page-kicker">Новый отзыв</div>
+    <h1 class="page-title">Отзыв о блюде: {{ line.dish.name }}</h1>
+    <p class="page-subtitle">Заказ №{{ reservation.public_id|default:reservation.pk }}</p>
+</section>
+
+<section class="card">
+    <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-group">
-            <label>Оценка (1–5)</label>
-            <select name="rating" required style="padding: 0.5rem;">
+            <label for="rating">Оценка (1–5)</label>
+            <select name="rating" id="rating" class="form-control" required>
                 <option value="">—</option>
                 {% for s in "12345" %}
                 <option value="{{ s }}">{{ s }}</option>
@@ -17,11 +22,13 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Комментарий</label>
-            <textarea name="comment" rows="4" style="width: 100%; padding: 0.5rem;"></textarea>
+            <label for="comment">Комментарий</label>
+            <textarea name="comment" id="comment" rows="4" class="form-control"></textarea>
         </div>
-        <button type="submit" class="btn btn-success">Отправить</button>
-        <a href="{% url 'client_order_detail' reservation.public_id|default:reservation.pk %}" class="btn">Отмена</a>
+        <div class="panel-actions">
+            <button type="submit" class="btn btn-success">Отправить</button>
+            <a href="{% url 'client_order_detail' reservation.public_id|default:reservation.pk %}" class="btn btn-secondary">Отмена</a>
+        </div>
     </form>
-</div>
+</section>
 {% endblock %}

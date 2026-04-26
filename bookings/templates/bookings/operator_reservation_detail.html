@@ -3,36 +3,56 @@
 {% block title %}Бронирование №{{ reservation.public_id|default:reservation.pk }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Бронирование №{{ reservation.public_id|default:reservation.pk }}</h2>
-    
-    <div style="margin: 1.5rem 0;">
-        <p><strong>Пользователь:</strong> {{ reservation.user.get_full_name|default:reservation.user.username }} ({{ reservation.user.email }})</p>
-        {% if reservation.table %}
-            <p><strong>Столик:</strong> №{{ reservation.table.table_number }} ({{ reservation.table.seats }} мест)</p>
-        {% else %}
-            <p><strong>Тип:</strong> Заказ на вынос</p>
-        {% endif %}
-        <p><strong>Дата и время начала:</strong> {{ reservation.start_time|date:"d.m.Y H:i" }}</p>
-        <p><strong>Дата и время окончания:</strong> {{ reservation.end_time|date:"d.m.Y H:i" }}</p>
-        <p><strong>Количество персон:</strong> {{ reservation.guests_count }}</p>
-        <p><strong>Статус:</strong> 
-            {% now "Y-m-d H:i:s" as now_str %}
-            {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
-                <span style="color: gray;">Завершено</span>
-            {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
-                <span style="color: green;">Активно</span>
-            {% else %}
-                <span style="color: blue;">Запланировано</span>
-            {% endif %}
-        </p>
-    </div>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Бронирование</div>
+    <h1 class="page-title">Бронирование №{{ reservation.public_id|default:reservation.pk }}</h1>
+    <p class="page-subtitle">Операторская карточка бронирования с данными клиента, стола и предзаказа.</p>
+</section>
 
-<div class="card">
-    <h3>Предзаказ блюд</h3>
+<section class="card">
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">Клиент</span>
+            <strong>{{ reservation.user.get_full_name|default:reservation.user.username }}</strong>
+            <span class="info-hint">{{ reservation.user.email }}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Статус</span>
+            <strong>{{ reservation.get_status_display }}</strong>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Начало</span>
+            <strong>{{ reservation.start_time|date:"d.m.Y H:i" }}</strong>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Окончание</span>
+            <strong>{{ reservation.end_time|date:"d.m.Y H:i" }}</strong>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Столик</span>
+            <strong>{% if reservation.table %}№{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</strong>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Гостей</span>
+            <strong>{{ reservation.guests_count }}</strong>
+        </div>
+    </div>
+    <div class="panel-actions" style="margin-top: 1.5rem;">
+        <a href="{% url 'operator_reservations' %}" class="btn btn-secondary">К списку</a>
+        <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger">Удалить бронирование</a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Предзаказ</div>
+            <h2>Предзаказ блюд</h2>
+        </div>
+    </div>
     {% if dishes %}
-        <table style="margin-top: 1rem;">
+    <div class="table-shell">
+        <table>
             <thead>
                 <tr>
                     <th>Блюдо</th>
@@ -48,18 +68,9 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
-        <p>В предзаказе нет блюд</p>
+    <div class="empty-state">В предзаказе пока нет блюд.</div>
     {% endif %}
-</div>
-
-<div style="margin-top: 1.5rem;">
-    <a href="{% url 'operator_reservations' %}" class="btn">Вернуться к списку</a>
-    <a href="{% url 'operator_reservation_delete' reservation.public_id|default:reservation.pk %}" class="btn btn-danger" style="margin-left: 0.5rem;">Удалить бронирование</a>
-</div>
+</section>
 {% endblock %}
-
-
-
-
-

@@ -3,23 +3,26 @@
 {% block title %}Вход в систему{% endblock %}
 
 {% block content %}
-<div class="card" style="max-width: 450px; margin: 4rem auto;">
-    <h2 style="text-align: center; margin-bottom: 2rem;">Вход в систему</h2>
-    <form method="post">
-        {% csrf_token %}
-        <div class="form-group">
-            <label for="id_username">Имя пользователя:</label>
-            <input type="text" name="username" id="id_username" class="form-control" required autofocus>
-        </div>
-        <div class="form-group">
-            <label for="id_password">Пароль:</label>
-            <input type="password" name="password" id="id_password" class="form-control" required>
-        </div>
-        <button type="submit" class="btn" style="width: 100%; margin-top: 0.5rem; padding: 0.875rem;">Войти</button>
-    </form>
-    <p style="margin-top: 1.5rem; color: #7f8c8d; font-size: 0.9rem; text-align: center;">
-        Для доступа к системе необходима учетная запись. Обратитесь к администратору.
-    </p>
-</div>
-{% endblock %}
+<section class="auth-shell">
+    <div class="card hero-card auth-card">
+        <div class="page-kicker">Доступ к системе</div>
+        <h1 class="page-title">Вход в личный кабинет</h1>
+        <p class="page-subtitle">Бронирование, меню, заказы и рабочие разделы доступны после авторизации в системе корпоративной столовой.</p>
 
+        <form method="post" class="stack-md">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="id_username">Имя пользователя</label>
+                <input type="text" name="username" id="id_username" class="form-control" required autofocus>
+            </div>
+            <div class="form-group">
+                <label for="id_password">Пароль</label>
+                <input type="password" name="password" id="id_password" class="form-control" required>
+            </div>
+            <button type="submit" class="btn" style="width: 100%;">Войти</button>
+        </form>
+
+        <p class="auth-note">Если у тебя ещё нет доступа, обратись к администратору системы.</p>
+    </div>
+</section>
+{% endblock %}

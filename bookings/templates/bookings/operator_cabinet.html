@@ -2,178 +2,219 @@
 
 {% block title %}Кабинет оператора{% endblock %}
 
-{% block extra_css %}
-<style>
-    .operator-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    .operator-card {
-        border: 1px solid #e4e8f5;
-        border-radius: 12px;
-        padding: 1.25rem;
-        background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%);
-    }
-    .operator-card .metric {
-        font-size: 2rem;
-        font-weight: 700;
-        color: #3546a8;
-    }
-    .operator-sections {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1.5rem;
-    }
-    .rating-pill {
-        display: inline-block;
-        padding: 0.2rem 0.55rem;
-        border-radius: 999px;
-        background: #eef2ff;
-        color: #3546a8;
-        font-weight: 700;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="card">
-    <h2>Кабинет оператора столовой</h2>
-    <p>Здесь собраны основные рабочие разделы: бронирования, меню, акции, новости, жалобы и свежие отзывы клиентов.</p>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Панель оператора</div>
+    <h1 class="page-title">Рабочий кабинет оператора столовой</h1>
+    <p class="page-subtitle">Бронирования, меню, временные слоты, акции, новости, жалобы, отзывы и отчёты собраны в одном современном рабочем контуре.</p>
+    <div class="panel-actions">
+        <a href="{% url 'operator_reservations' %}" class="btn">Бронирования</a>
+        <a href="{% url 'operator_tables' %}" class="btn btn-secondary">Столики</a>
+        <a href="{% url 'operator_dishes' %}" class="btn btn-secondary">Блюда</a>
+        <a href="{% url 'operator_menus' %}" class="btn btn-secondary">Меню</a>
+        <a href="{% url 'operator_service_slots' %}" class="btn btn-secondary">Слоты</a>
+        <a href="{% url 'operator_reports' %}" class="btn btn-secondary">Отчёты</a>
+    </div>
+</section>
 
-<div class="operator-grid">
-    <div class="operator-card">
-        <h3>Бронирования</h3>
-        <div class="metric">{{ reservations|length }}</div>
-        <p>Последние бронирования и заказы</p>
-        <a href="{% url 'operator_reservations' %}" class="btn">Все бронирования</a>
-    </div>
-    <div class="operator-card">
-        <h3>Столики</h3>
-        <div class="metric">{{ tables|length }}</div>
-        <p>Управление вместимостью и карточками столов</p>
-        <a href="{% url 'operator_tables' %}" class="btn">Столики</a>
-    </div>
-    <div class="operator-card">
-        <h3>Блюда</h3>
-        <div class="metric">{{ dishes|length }}</div>
-        <p>Номенклатура и остатки блюд</p>
-        <a href="{% url 'operator_dishes' %}" class="btn">Блюда</a>
-    </div>
-    <div class="operator-card">
-        <h3>Жалобы</h3>
-        <div class="metric">{{ complaints_new }}</div>
-        <p>Новых жалоб: {{ complaints_new }} из {{ complaints_total }}</p>
-        <a href="{% url 'operator_complaint_list' %}" class="btn">Открыть жалобы</a>
-    </div>
-    <div class="operator-card">
-        <h3>Отзывы</h3>
-        <div class="metric">{{ reviews_total }}</div>
-        <p>Все отзывы по блюдам</p>
-        <a href="#recent-reviews" class="btn">Смотреть отзывы</a>
-    </div>
-    <div class="operator-card">
-        <h3>Меню и публикации</h3>
-        <p>Меню на дни недели, новости и акции</p>
-        <a href="{% url 'operator_menus' %}" class="btn">Меню</a>
-        <a href="{% url 'operator_news_list' %}" class="btn">Новости</a>
-        <a href="{% url 'operator_promotion_list' %}" class="btn">Акции</a>
-    </div>
-</div>
+<section class="operator-grid">
+    <div class="operator-kpi"><div class="value">{{ reservations_today }}</div><div class="stats-label">Бронирования сегодня</div></div>
+    <div class="operator-kpi"><div class="value">{{ reservations_active }}</div><div class="stats-label">Активные сейчас</div></div>
+    <div class="operator-kpi"><div class="value">{{ reservations_completed_period }}</div><div class="stats-label">Завершено за период</div></div>
+    <div class="operator-kpi"><div class="value">{{ reservations_cancelled_period }}</div><div class="stats-label">Отменено за период</div></div>
+    <div class="operator-kpi"><div class="value">{{ complaints_new }}</div><div class="stats-label">Новые жалобы</div></div>
+    <div class="operator-kpi"><div class="value">{{ complaints_seen }}</div><div class="stats-label">Просмотрено жалоб</div></div>
+    <div class="operator-kpi"><div class="value">{{ complaints_closed }}</div><div class="stats-label">Закрыто жалоб</div></div>
+    <div class="operator-kpi"><div class="value">{{ reviews_total }}</div><div class="stats-label">Всего отзывов</div></div>
+    <div class="operator-kpi"><div class="value">{% if reviews_avg %}{{ reviews_avg|floatformat:1 }}{% else %}—{% endif %}</div><div class="stats-label">Средняя оценка</div></div>
+    <div class="operator-kpi"><div class="value">{{ reviews_new_period }}</div><div class="stats-label">Новые отзывы за период</div></div>
+    <div class="operator-kpi"><div class="value">{{ sales_total_revenue|floatformat:0 }}</div><div class="stats-label">Выручка за период, ₽</div></div>
+    <div class="operator-kpi"><div class="value">{{ low_stock_dishes|length }}</div><div class="stats-label">Блюд с низким остатком</div></div>
+</section>
 
-<div class="operator-sections">
+<section class="sections-grid">
     <div class="card">
-        <h3>Последние жалобы клиентов</h3>
+        <div class="section-head">
+            <div>
+                <h3>Последние жалобы клиентов</h3>
+                <p class="page-subtitle">Новые и недавно обновлённые обращения.</p>
+            </div>
+        </div>
         {% if recent_complaints %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Дата</th>
-                    <th>Клиент</th>
-                    <th>Тема</th>
-                    <th>Статус</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for complaint in recent_complaints %}
-                <tr>
-                    <td>{{ complaint.created_at|date:"d.m.Y H:i" }}</td>
-                    <td>{{ complaint.user.username }}</td>
-                    <td>{{ complaint.subject|truncatechars:48 }}</td>
-                    <td>{{ complaint.get_status_display }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="table-shell">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Клиент</th>
+                        <th>Тема</th>
+                        <th>Статус</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for complaint in recent_complaints %}
+                    <tr>
+                        <td>{{ complaint.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>{{ complaint.user.username }}</td>
+                        <td>{{ complaint.subject|truncatechars:48 }}</td>
+                        <td><span class="pill">{{ complaint.get_status_display }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
-        <p>Жалоб пока нет.</p>
+        <div class="empty-state">Жалоб пока нет.</div>
         {% endif %}
-        <p style="margin-top: 1rem;">
-            <a href="{% url 'operator_complaint_list' %}" class="btn">Перейти к обработке жалоб</a>
-        </p>
     </div>
 
-    <div class="card" id="recent-reviews">
-        <h3>Последние отзывы о блюдах</h3>
+    <div class="card">
+        <div class="section-head">
+            <div>
+                <h3>Последние отзывы о блюдах</h3>
+                <p class="page-subtitle">Свежая обратная связь от клиентов.</p>
+            </div>
+        </div>
         {% if recent_reviews %}
+        <div class="table-shell">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Блюдо</th>
+                        <th>Оценка</th>
+                        <th>Клиент</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for review in recent_reviews %}
+                    <tr>
+                        <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
+                        <td>{{ review.order_item.dish_name_snapshot }}</td>
+                        <td><span class="pill">{{ review.rating }}/5</span></td>
+                        <td>{{ review.order_item.order.user.username }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Отзывов пока нет.</div>
+        {% endif %}
+    </div>
+</section>
+
+<section class="sections-grid" style="margin-top: 1.5rem;">
+    <div class="card">
+        <h3>Топ блюд за период</h3>
+        {% if top_dishes %}
+        <div class="table-shell">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Блюдо</th>
+                        <th>Количество</th>
+                        <th>Выручка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in top_dishes %}
+                    <tr>
+                        <td>{{ row.items__dish_name_snapshot }}</td>
+                        <td>{{ row.total_quantity|default:0 }}</td>
+                        <td>{{ row.total_revenue|default:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Продаж за выбранный период пока нет.</div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <h3>Анти-топ блюд за период</h3>
+        {% if low_dishes %}
+        <div class="table-shell">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Блюдо</th>
+                        <th>Количество</th>
+                        <th>Выручка</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in low_dishes %}
+                    <tr>
+                        <td>{{ row.items__dish_name_snapshot }}</td>
+                        <td>{{ row.total_quantity|default:0 }}</td>
+                        <td>{{ row.total_revenue|default:0 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">Недостаточно данных для анти-топа.</div>
+        {% endif %}
+    </div>
+</section>
+
+{% if low_stock_dishes %}
+<section class="card">
+    <h3>Низкие остатки</h3>
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
-                    <th>Дата</th>
                     <th>Блюдо</th>
-                    <th>Оценка</th>
-                    <th>Клиент</th>
+                    <th>Остаток</th>
                 </tr>
             </thead>
             <tbody>
-                {% for review in recent_reviews %}
+                {% for dish in low_stock_dishes %}
                 <tr>
-                    <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
-                    <td>{{ review.order_item.dish_name_snapshot }}</td>
-                    <td><span class="rating-pill">{{ review.rating }}/5</span></td>
-                    <td>{{ review.order_item.order.user.username }}</td>
+                    <td>{{ dish.name }}</td>
+                    <td>{{ dish.available_quantity }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        {% else %}
-        <p>Отзывов пока нет.</p>
-        {% endif %}
     </div>
-</div>
+</section>
+{% endif %}
 
-<div class="card">
+<section class="card">
     <h3>Последние бронирования</h3>
     {% if reservations %}
-    <table>
-        <thead>
-            <tr>
-                <th>Дата</th>
-                <th>Столик</th>
-                <th>Клиент</th>
-                <th>Персон</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for reservation in reservations %}
-            <tr>
-                <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
-                <td>№{{ reservation.table.table_number }}</td>
-                <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
-                <td>{{ reservation.guests_count }}</td>
-                <td>
-                    <a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn">Открыть</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Столик</th>
+                    <th>Клиент</th>
+                    <th>Персон</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reservation in reservations %}
+                <tr>
+                    <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>№{{ reservation.table.table_number }}</td>
+                    <td>{{ reservation.user.get_full_name|default:reservation.user.username }}</td>
+                    <td>{{ reservation.guests_count }}</td>
+                    <td><a href="{% url 'operator_reservation_detail' reservation.public_id|default:reservation.pk %}" class="btn btn-secondary">Открыть</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <p>Бронирований пока нет.</p>
+    <div class="empty-state">Бронирований пока нет.</div>
     {% endif %}
-</div>
+</section>
 {% endblock %}

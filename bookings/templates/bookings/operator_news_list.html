@@ -1,32 +1,48 @@
 {% extends "base.html" %}
+
 {% block title %}Новости{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Новости</h2>
-    <a href="{% url 'operator_news_create' %}" class="btn btn-success">Добавить новость</a>
-</div>
-<div class="card">
+<section class="card hero-card">
+    <div class="page-kicker">Новости</div>
+    <h1 class="page-title">Новости</h1>
+    <p class="page-subtitle">Управляйте публикациями, статусом новостей и датой размещения без выхода из операторского кабинета.</p>
+    <div class="panel-actions" style="margin-top: 1rem;">
+        <a href="{% url 'operator_news_create' %}" class="btn btn-success">Добавить новость</a>
+    </div>
+</section>
+
+<section class="card">
     {% if news_list %}
-    <table>
-        <thead>
-            <tr><th>Заголовок</th><th>Публикация</th><th>Статус</th><th></th></tr>
-        </thead>
-        <tbody>
-            {% for n in news_list %}
-            <tr>
-                <td>{{ n.title }}</td>
-                <td>{{ n.published_at|date:"d.m.Y H:i" }}</td>
-                <td>{% if n.is_published %}Опубликовано{% else %}Черновик{% endif %}</td>
-                <td>
-                    <a href="{% url 'operator_news_edit' n.pk %}" class="btn">Изменить</a>
-                    <a href="{% url 'operator_news_delete' n.pk %}" class="btn btn-danger">Удалить</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Заголовок</th>
+                    <th>Публикация</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for n in news_list %}
+                <tr>
+                    <td>{{ n.title }}</td>
+                    <td>{{ n.published_at|date:"d.m.Y H:i" }}</td>
+                    <td>{% if n.is_published %}<span class="status-badge status-success">Опубликовано</span>{% else %}<span class="status-badge">Черновик</span>{% endif %}</td>
+                    <td>
+                        <div class="table-actions">
+                            <a href="{% url 'operator_news_edit' n.pk %}" class="btn btn-secondary btn-sm">Редактировать</a>
+                            <a href="{% url 'operator_news_delete' n.pk %}" class="btn btn-danger btn-sm">Удалить</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <p>Новостей пока нет.</p>
+    <div class="empty-state">Новостей пока нет.</div>
     {% endif %}
-</div>
+</section>
 {% endblock %}

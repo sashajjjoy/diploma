@@ -1,12 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Удалить акцию{% endblock %}
+
+{% block title %}Удаление акции{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Удалить акцию «{{ promotion.name }}»?</h2>
-    <form method="post">
+<section class="card hero-card">
+    <div class="page-kicker">Подтверждение действия</div>
+    <h1 class="page-title">Удаление акции</h1>
+    <p class="page-subtitle">Проверьте название акции и подтвердите удаление предложения.</p>
+</section>
+
+<section class="card">
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">Акция</span>
+            <strong>{{ promotion.name }}</strong>
+        </div>
+    </div>
+    <form method="post" style="margin-top: 1.5rem;">
         {% csrf_token %}
-        <button type="submit" class="btn btn-danger">Удалить</button>
-        <a href="{% url 'operator_promotion_list' %}" class="btn">Отмена</a>
+        <div class="panel-actions">
+            <button type="submit" class="btn btn-danger">Удалить</button>
+            <a href="{% url 'operator_promotion_list' %}" class="btn btn-secondary">Отмена</a>
+        </div>
     </form>
-</div>
+</section>
 {% endblock %}

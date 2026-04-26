@@ -16,14 +16,17 @@ from bookings.models import (
     OrderItemReview,
     Promotion,
     PromotionComboItem,
+    ServiceWeekdayWindow,
     VenueComplaint,
 )
+from bookings.services.availability import get_duration_values
 from bookings.services.promotions import available_quantity_net
 from bookings.services.reservations import (
     create_dish_review,
     create_or_update_reservation_for_client,
     get_public_id,
 )
+from bookings.services.security import clear_login_attempt, is_login_locked, record_failed_login
 
 
 class AuthTokenSerializer(serializers.Serializer):
@@ -31,13 +34,18 @@ class AuthTokenSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, trim_whitespace=False)
 
     def validate(self, attrs):
+        locked, attempt = is_login_locked(attrs["username"].strip())
+        if locked and attempt is not None:
+            raise serializers.ValidationError({"detail": ["Account is temporarily locked."]})
         user = authenticate(
             request=self.context.get("request"),
             username=attrs["username"],
             password=attrs["password"],
         )
         if user is None:
+            record_failed_login(attrs["username"].strip(), self.context.get("request"))
             raise serializers.ValidationError({"detail": ["Invalid username or password."]})
+        clear_login_attempt(attrs["username"].strip())
         refresh = RefreshToken.for_user(user)
         return {
             "access": str(refresh.access_token),
@@ -325,15 +333,18 @@ class ReservationCreateUpdateSerializer(serializers.Serializer):
                 raise serializers.ValidationError({"time": ["This field is required for table reservations."]})
             if attrs.get("duration_minutes") is None:
                 raise serializers.ValidationError({"duration_minutes": ["This field is required for table reservations."]})
-            if attrs.get("duration_minutes") not in (25, 55):
-                raise serializers.ValidationError({"duration_minutes": ["Supported values are 25 or 55 minutes."]})
+            allowed_durations = get_duration_values()
+            if attrs.get("duration_minutes") not in allowed_durations:
+                raise serializers.ValidationError(
+                    {"duration_minutes": [f"Supported values are: {', '.join(str(value) for value in allowed_durations)} minutes."]}
+                )
             if attrs.get("guests_count") is None:
                 raise serializers.ValidationError({"guests_count": ["This field is required for table reservations."]})
         else:
             attrs["guests_count"] = 1
 
-        if attrs["date"].weekday() >= 5:
-            raise serializers.ValidationError({"date": ["Reservations are available only on working days."]})
+        if not ServiceWeekdayWindow.is_service_day(attrs["date"]):
+            raise serializers.ValidationError({"date": ["Reservations are available only on active service days."]})
         return attrs
 
     def _service_payload(self):

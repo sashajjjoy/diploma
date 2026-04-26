@@ -2,155 +2,91 @@
 
 {% block title %}Управление меню{% endblock %}
 
-{% block extra_css %}
-<style>
-    .calendar-container {
-        margin-top: 1.5rem;
-    }
-    .calendar {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 0.5rem;
-        margin-top: 1rem;
-    }
-    .calendar-header {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        gap: 0.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .calendar-header-cell {
-        text-align: center;
-        font-weight: 600;
-        padding: 0.5rem;
-        background: #667eea;
-        color: white;
-        border-radius: 4px;
-    }
-    .calendar-day {
-        aspect-ratio: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border: 2px solid #e1e8ed;
-        border-radius: 4px;
-        cursor: pointer;
-        transition: all 0.2s;
-        background: white;
-        font-weight: 500;
-    }
-    .calendar-day:hover {
-        border-color: #667eea;
-        background: #ecf0f1;
-        transform: translateY(-2px);
-        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
-    }
-    .calendar-day.other-month {
-        opacity: 0.3;
-        cursor: default;
-    }
-    .calendar-day.other-month:hover {
-        transform: none;
-        border-color: #e1e8ed;
-        background: white;
-    }
-    .calendar-day.today {
-        border-color: #667eea;
-        background: #667eea;
-        color: white;
-        font-weight: 600;
-    }
-    .calendar-nav {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-    .calendar-nav button {
-        padding: 0.5rem 1rem;
-        border: 2px solid #667eea;
-        background: white;
-        color: #667eea;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: 500;
-    }
-    .calendar-nav button:hover {
-        background: #667eea;
-        color: white;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="card">
-    <h2>Управление меню</h2>
-    <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+<section class="card hero-card">
+    <div class="page-kicker">Недельное меню</div>
+    <h1 class="page-title">Управление меню</h1>
+    <p class="page-subtitle">Планируйте меню по дням недели, смотрите календарь и быстро открывайте переопределения на конкретные даты.</p>
+    <div class="panel-actions" style="margin-top: 1rem;">
         <a href="{% url 'operator_menus_create_all' %}" class="btn btn-success">Создать меню на рабочие дни</a>
-        <a href="{% url 'operator_menu_override_create' %}" class="btn btn-success">Переопределить меню на период</a>
+        <a href="{% url 'operator_menu_override_create' %}" class="btn btn-secondary">Переопределить меню на период</a>
     </div>
-</div>
+</section>
 
-<div class="card calendar-container">
-    <h3>Календарь меню</h3>
-    <p style="color: #666; margin-bottom: 1rem;">Нажмите на дату, чтобы посмотреть меню на этот день</p>
-    
-    <div class="calendar-nav">
-        <button onclick="changeMonth(-1)">← Предыдущий месяц</button>
-        <h4 id="calendar-month-year" style="margin: 0;"></h4>
-        <button onclick="changeMonth(1)">Следующий месяц →</button>
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Календарь</div>
+            <h2>Календарь меню</h2>
+        </div>
     </div>
-    
-    <div class="calendar-header">
-        <div class="calendar-header-cell">Пн</div>
-        <div class="calendar-header-cell">Вт</div>
-        <div class="calendar-header-cell">Ср</div>
-        <div class="calendar-header-cell">Чт</div>
-        <div class="calendar-header-cell">Пт</div>
-        <div class="calendar-header-cell">Сб</div>
-        <div class="calendar-header-cell">Вс</div>
-    </div>
-    
-    <div id="calendar" class="calendar">
-        <!-- Календарь будет заполнен JavaScript -->
-    </div>
-</div>
+    <p class="page-subtitle">Нажмите на дату, чтобы открыть меню на выбранный день.</p>
 
-<div class="card" style="margin-top: 1.5rem;">
-    <h3>Еженедельные меню</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>День недели</th>
-                <th>Статус</th>
-                <th>Количество блюд</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for menu in menus %}
-            <tr>
-                <td>{{ menu.get_day_of_week_display }}</td>
-                <td>
-                    {% if menu.is_active %}
-                        <span style="color: green;">Активно</span>
-                    {% else %}
-                        <span style="color: gray;">Неактивно</span>
-                    {% endif %}
-                </td>
-                <td>{{ menu.items.count }}</td>
-                <td>
-                    <a href="{% url 'operator_menu_edit' menu.day_of_week %}" class="btn">Редактировать</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+    <div class="calendar-shell">
+        <div class="calendar-nav">
+            <button type="button" class="btn btn-secondary" onclick="changeMonth(-1)">Предыдущий месяц</button>
+            <h3 id="calendar-month-year"></h3>
+            <button type="button" class="btn btn-secondary" onclick="changeMonth(1)">Следующий месяц</button>
+        </div>
 
-<div class="card" style="margin-top: 1.5rem;">
-    <h3>Переопределения меню</h3>
+        <div class="calendar-header">
+            <div class="calendar-header-cell">Пн</div>
+            <div class="calendar-header-cell">Вт</div>
+            <div class="calendar-header-cell">Ср</div>
+            <div class="calendar-header-cell">Чт</div>
+            <div class="calendar-header-cell">Пт</div>
+            <div class="calendar-header-cell">Сб</div>
+            <div class="calendar-header-cell">Вс</div>
+        </div>
+
+        <div id="calendar" class="calendar"></div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Шаблоны меню</div>
+            <h2>Еженедельные меню</h2>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>День недели</th>
+                    <th>Статус</th>
+                    <th>Количество блюд</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for menu in menus %}
+                <tr>
+                    <td>{{ menu.get_day_of_week_display }}</td>
+                    <td>{% if menu.is_active %}<span class="status-badge status-success">Активно</span>{% else %}<span class="status-badge">Неактивно</span>{% endif %}</td>
+                    <td>{{ menu.items.count }}</td>
+                    <td>
+                        <div class="table-actions">
+                            <a href="{% url 'operator_menu_edit' menu.day_of_week %}" class="btn btn-secondary btn-sm">Редактировать</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Переопределения</div>
+            <h2>Переопределения меню</h2>
+        </div>
+    </div>
     {% if overrides %}
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
@@ -166,93 +102,79 @@
                     <td>
                         {{ override.date_from|date:"d.m.Y" }}
                         {% if override.date_to %}
-                            - {{ override.date_to|date:"d.m.Y" }}
+                        — {{ override.date_to|date:"d.m.Y" }}
                         {% endif %}
                     </td>
-                    <td>
-                        {% if override.is_active %}
-                            <span style="color: green;">Активно</span>
-                        {% else %}
-                            <span style="color: gray;">Неактивно</span>
-                        {% endif %}
-                    </td>
+                    <td>{% if override.is_active %}<span class="status-badge status-success">Активно</span>{% else %}<span class="status-badge">Неактивно</span>{% endif %}</td>
                     <td>{{ override.items.count }}</td>
                     <td>
-                        <a href="{% url 'operator_menu_override_detail' override.pk %}" class="btn">Просмотр</a>
-                        <a href="{% url 'operator_menu_override_edit' override.pk %}" class="btn">Редактировать</a>
-                        <a href="{% url 'operator_menu_override_delete' override.pk %}" class="btn btn-danger">Удалить</a>
+                        <div class="table-actions">
+                            <a href="{% url 'operator_menu_override_detail' override.pk %}" class="btn btn-secondary btn-sm">Просмотр</a>
+                            <a href="{% url 'operator_menu_override_edit' override.pk %}" class="btn btn-secondary btn-sm">Редактировать</a>
+                            <a href="{% url 'operator_menu_override_delete' override.pk %}" class="btn btn-danger btn-sm">Удалить</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
-        <p>Переопределения меню не найдены</p>
+    <div class="empty-state">Переопределения меню пока не созданы.</div>
     {% endif %}
+</section>
+
+<div class="panel-actions">
+    <a href="{% url 'operator_cabinet' %}" class="btn btn-secondary">Вернуться в кабинет</a>
 </div>
+{% endblock %}
 
-<a href="{% url 'operator_cabinet' %}" class="btn" style="margin-top: 1.5rem;">Вернуться в кабинет</a>
-
+{% block extra_js %}
 <script>
 let currentDate = new Date();
-currentDate.setDate(1); // Первый день месяца
+currentDate.setDate(1);
 
 function renderCalendar() {
     const calendar = document.getElementById('calendar');
     const monthYear = document.getElementById('calendar-month-year');
-    
-    // Названия месяцев
-    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
-    
+    const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
     monthYear.textContent = `${monthNames[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
-    
     calendar.innerHTML = '';
-    
+
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
-    
-    // Первый день месяца
     const firstDay = new Date(year, month, 1);
-    const startingDayOfWeek = (firstDay.getDay() + 6) % 7; // Понедельник = 0
-    
-    // Количество дней в месяце
+    const startingDayOfWeek = (firstDay.getDay() + 6) % 7;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    // Текущая дата для выделения
     const today = new Date();
     const isCurrentMonth = today.getMonth() === month && today.getFullYear() === year;
-    
-    // Заполняем пустые ячейки до первого дня месяца
+
     for (let i = 0; i < startingDayOfWeek; i++) {
         const emptyDay = document.createElement('div');
         emptyDay.className = 'calendar-day other-month';
         calendar.appendChild(emptyDay);
     }
-    
-    // Заполняем дни месяца
+
     for (let day = 1; day <= daysInMonth; day++) {
         const dayElement = document.createElement('div');
         dayElement.className = 'calendar-day';
         dayElement.textContent = day;
-        
-        // Выделяем сегодня
+
         if (isCurrentMonth && day === today.getDate()) {
             dayElement.classList.add('today');
         }
-        
-        // Добавляем обработчик клика
+
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         dayElement.onclick = function() {
             window.location.href = `{% url 'operator_menu_view_date' %}?date=${dateStr}`;
         };
-        
+
         calendar.appendChild(dayElement);
     }
-    
-    // Заполняем оставшиеся ячейки (следующий месяц)
+
     const totalCells = calendar.children.length;
-    const remainingCells = 42 - totalCells; // 6 рядов * 7 дней
+    const remainingCells = 42 - totalCells;
     for (let i = 0; i < remainingCells; i++) {
         const emptyDay = document.createElement('div');
         emptyDay.className = 'calendar-day other-month';
@@ -265,9 +187,6 @@ function changeMonth(direction) {
     renderCalendar();
 }
 
-// Инициализация календаря
-document.addEventListener('DOMContentLoaded', function() {
-    renderCalendar();
-});
+document.addEventListener('DOMContentLoaded', renderCalendar);
 </script>
 {% endblock %}

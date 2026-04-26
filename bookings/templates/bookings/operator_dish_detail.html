@@ -3,33 +3,57 @@
 {% block title %}{{ dish.name }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>{{ dish.name }}</h2>
-    
-    <div style="margin: 1.5rem 0;">
-        {% if dish.image %}
-            <img src="{{ dish.image.url }}" alt="{{ dish.name }}" style="max-width: 300px; max-height: 300px; margin-bottom: 1rem;">
-        {% endif %}
-        <p><strong>Описание:</strong> {{ dish.description|default:"Не указано" }}</p>
-        <p><strong>Цена:</strong> {{ dish.price|floatformat:2 }} ₽</p>
-        <p><strong>Доступное количество:</strong> {{ dish.available_quantity }}</p>
-    </div>
-    
-    <p>
-        <a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Редактировать</a>
-        <a href="{% url 'operator_dish_delete' dish.pk %}" class="btn btn-danger">Удалить</a>
-    </p>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Карточка блюда</div>
+    <h1 class="page-title">{{ dish.name }}</h1>
+    <p class="page-subtitle">Карточка блюда с ценой, остатком и историей использования в бронированиях и заказах.</p>
+</section>
 
-<div class="card">
-    <h3>Использование в бронированиях</h3>
+<section class="card">
+    <div class="split-hero">
+        <div>
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">Цена</span>
+                    <strong>{{ dish.price|floatformat:2 }} ₽</strong>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">Остаток</span>
+                    <strong>{{ dish.available_quantity }}</strong>
+                </div>
+            </div>
+            <p class="page-subtitle" style="margin-top: 1rem;">{{ dish.description|default:"Описание для блюда пока не заполнено." }}</p>
+            <div class="panel-actions" style="margin-top: 1.25rem;">
+                <a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Редактировать</a>
+                <a href="{% url 'operator_dish_delete' dish.pk %}" class="btn btn-danger">Удалить</a>
+                <a href="{% url 'operator_dishes' %}" class="btn btn-secondary">К списку блюд</a>
+            </div>
+        </div>
+        <div class="dish-card">
+            {% if dish.image %}
+            <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
+            {% else %}
+            <div class="dish-card__placeholder">Изображение не загружено</div>
+            {% endif %}
+        </div>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Использование</div>
+            <h2>История использования</h2>
+        </div>
+    </div>
     {% if reservations %}
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
                     <th>Бронирование</th>
-                    <th>Пользователь</th>
-                    <th>Дата</th>
+                    <th>Клиент</th>
+                    <th>Дата и время</th>
                     <th>Количество</th>
                 </tr>
             </thead>
@@ -44,10 +68,9 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
-        <p>Блюдо не используется в бронированиях</p>
+    <div class="empty-state">Блюдо ещё не использовалось в бронированиях и предзаказах.</div>
     {% endif %}
-</div>
-
-<a href="{% url 'operator_dishes' %}" class="btn">Вернуться к списку</a>
+</section>
 {% endblock %}

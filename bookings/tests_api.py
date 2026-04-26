@@ -8,7 +8,22 @@ from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from bookings.models import Booking, CustomerOrder, Dish, OrderItem, OrderItemReview, Promotion, Table, UserProfile, WeeklyMenuDaySettings, WeeklyMenuItem
+from bookings.models import (
+    Booking,
+    CustomerOrder,
+    Dish,
+    LoginAttempt,
+    OrderItem,
+    OrderItemReview,
+    Promotion,
+    ServiceDurationOption,
+    ServiceSlotSettings,
+    ServiceWeekdayWindow,
+    Table,
+    UserProfile,
+    WeeklyMenuDaySettings,
+    WeeklyMenuItem,
+)
 
 
 MOSCOW_TZ = pytz.timezone("Europe/Moscow")
@@ -36,6 +51,12 @@ class ApiBaseTestCase(TestCase):
         candidate = start_date + timedelta(days=1)
         while candidate.weekday() >= 5:
             candidate += timedelta(days=1)
+        return candidate
+
+    def _previous_weekday(self, start_date):
+        candidate = start_date - timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate -= timedelta(days=1)
         return candidate
 
     def _booking_datetimes(self, target_date=None, hour=12, minute=0, duration=55):
@@ -173,12 +194,36 @@ class ReservationApiTests(ApiBaseTestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("time", response.data["errors"])
 
+    def test_available_slots_use_operator_duration_settings(self):
+        self.auth_as_client()
+        ServiceWeekdayWindow.ensure_defaults()
+        ServiceDurationOption.objects.all().update(is_active=False)
+        ServiceDurationOption.objects.create(duration_minutes=40, is_active=True, sort_order=10)
+        ServiceDurationOption.objects.create(duration_minutes=70, is_active=True, sort_order=20)
+        ServiceSlotSettings.get_solo().slot_step_minutes = 20
+        ServiceSlotSettings.get_solo().save()
+        response = self.client_api.get(f"/api/v1/availability/available-slots/?date={self.booking_date.isoformat()}&guests_count=2")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(40, response.data["available_slots"])
+        self.assertIn(70, response.data["available_slots"])
+
+    def test_login_attempts_lock_api_auth(self):
+        for _ in range(5):
+            response = self.client_api.post("/api/v1/auth/login/", {"username": "client", "password": "wrong"}, format="json")
+            self.assertEqual(response.status_code, 400)
+        attempt = LoginAttempt.objects.get(username="client")
+        self.assertGreaterEqual(attempt.failed_attempts, 5)
+        locked = self.client_api.post("/api/v1/auth/login/", {"username": "client", "password": "wrong"}, format="json")
+        self.assertEqual(locked.status_code, 400)
+
 
 class ReviewApiTests(ApiBaseTestCase):
     def test_review_can_be_left_only_once_for_order_item(self):
-        booking, order, line = self.create_booking()
-        booking.start_time = timezone.now() - timedelta(hours=2)
-        booking.end_time = timezone.now() - timedelta(hours=1)
+        past_date = self._previous_weekday(timezone.localdate())
+        booking, order, line = self.create_booking(target_date=past_date)
+        booking.start_time, booking.end_time = self._booking_datetimes(target_date=past_date, hour=12, minute=0, duration=55)
+        booking.start_time -= timedelta(days=0)
+        booking.end_time -= timedelta(days=0)
         booking.save()
         order.scheduled_for = booking.start_time
         order.save(update_fields=["scheduled_for"])

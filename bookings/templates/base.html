@@ -1,586 +1,94 @@
+{% load static user_tags %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Бронирование столиков{% endblock %}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: #f8f9fa;
-            color: #2c3e50;
-            line-height: 1.6;
-        }
-        .navbar {
-            background: #667eea;
-            color: white;
-            padding: 1.25rem 2rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-        }
-        .navbar-main-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            width: 100%;
-            gap: 1rem;
-            position: relative;
-            flex-wrap: nowrap;
-        }
-        .navbar-nav-cluster {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            flex: 1;
-            min-width: 0;
-        }
-        .navbar-expandable .navbar-main-row {
-            position: relative;
-        }
-        .navbar-sandwich {
-            display: none;
-            align-items: center;
-            justify-content: center;
-            width: 44px;
-            height: 44px;
-            padding: 0;
-            border: none;
-            background: rgba(255,255,255,0.15);
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            flex-shrink: 0;
-            transition: background 0.2s ease;
-        }
-        .navbar-sandwich:hover {
-            background: rgba(255,255,255,0.25);
-        }
-        .navbar-sandwich .sandwich-icon {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            width: 22px;
-        }
-        .navbar-sandwich .sandwich-icon span {
-            display: block;
-            height: 2px;
-            background: currentColor;
-            border-radius: 1px;
-        }
-        .navbar-link-list {
-            display: flex;
-            align-items: center;
-            flex-wrap: nowrap;
-            gap: 0.25rem;
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-        }
-        .navbar-expandable.navbar--sandwich .navbar-link-list {
-            display: none;
-            position: absolute;
-            left: auto;
-            right: 0;
-            top: calc(100% + 0.5rem);
-            min-width: min(280px, calc(100vw - 4rem));
-            flex-direction: column;
-            flex-wrap: nowrap;
-            align-items: stretch;
-            gap: 0;
-            padding: 0.5rem 0;
-            background: #5a6fd6;
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            overflow: visible;
-            z-index: 1001;
-        }
-        .navbar-expandable.navbar--sandwich .navbar-link-list.is-open {
-            display: flex;
-        }
-        .navbar-expandable.navbar--sandwich .navbar-link-list a {
-            border-radius: 0;
-            padding: 0.65rem 1.25rem;
-        }
-        .navbar-expandable.navbar--sandwich .navbar-sandwich {
-            display: flex;
-        }
-        @media (max-width: 900px) {
-            .navbar-expandable .navbar-sandwich {
-                display: flex;
-            }
-            .navbar-expandable .navbar-link-list {
-                display: none;
-                position: absolute;
-                left: auto;
-                right: 0;
-                top: calc(100% + 0.5rem);
-                min-width: min(280px, calc(100vw - 4rem));
-                flex-direction: column;
-                flex-wrap: nowrap;
-                background: #5a6fd6;
-                border-radius: 8px;
-                box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-                z-index: 1001;
-                padding: 0.5rem 0;
-            }
-            .navbar-expandable .navbar-link-list.is-open {
-                display: flex;
-            }
-            .navbar-expandable .navbar-link-list a {
-                border-radius: 0;
-                padding: 0.65rem 1.25rem;
-            }
-        }
-        .navbar a {
-            color: white;
-            text-decoration: none;
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-            display: inline-block;
-            line-height: 1.5;
-        }
-        .navbar a:hover {
-            background: rgba(255,255,255,0.15);
-            transform: translateY(-1px);
-        }
-        .navbar-user {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            flex-wrap: wrap;
-            flex-shrink: 0;
-            justify-content: flex-start;
-        }
-        .navbar-main-row > .navbar-nav-cluster {
-            flex: 1;
-            min-width: 0;
-        }
-        .navbar-user span {
-            opacity: 0.9;
-            font-size: 1rem;
-            line-height: 1.5;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 2rem;
-        }
-        .messages {
-            margin-bottom: 1.5rem;
-        }
-        .alert {
-            padding: 1rem 1.25rem;
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            border-left: 4px solid;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #28a745;
-        }
-        .alert-error {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #dc3545;
-        }
-        .btn {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background: #667eea;
-            color: white;
-            text-decoration: none;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-right: 0.5rem;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-            font-size: 1rem;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            transition: all 0.3s ease;
-            box-shadow: 0 2px 4px rgba(102, 126, 234, 0.3);
-            line-height: 1.5;
-        }
-        .btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.4);
-        }
-        .btn:active {
-            transform: translateY(0);
-        }
-        .btn-danger {
-            background: #e74c3c;
-            border: 2px solid #e74c3c;
-            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.3);
-            font-size: 1rem;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-        .btn-danger:hover {
-            background: #c0392b;
-            border-color: #c0392b;
-            box-shadow: 0 4px 8px rgba(231, 76, 60, 0.4);
-        }
-        .btn-success {
-            background: white;
-            color: #27ae60;
-            border: 2px solid transparent;
-            background-image: linear-gradient(white, white), linear-gradient(to right, #ffd700, #27ae60);
-            background-origin: border-box;
-            background-clip: padding-box, border-box;
-            box-shadow: 0 2px 4px rgba(39, 174, 96, 0.3);
-            font-size: 1rem;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-        .btn-success:hover {
-            background-image: linear-gradient(#f8f9fa, #f8f9fa), linear-gradient(to right, #ffd700, #27ae60);
-            box-shadow: 0 4px 8px rgba(39, 174, 96, 0.4);
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        th, td {
-            padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #e9ecef;
-        }
-        th {
-            background: #667eea;
-            color: white;
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-        }
-        tr:hover {
-            background: #f8f9fa;
-        }
-        tr:last-child td {
-            border-bottom: none;
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        label {
-            display: block;
-            margin-bottom: 0.75rem;
-            font-weight: 600;
-            color: #2c3e50;
-            font-size: 0.95rem;
-        }
-        .form-control {
-            width: 100%;
-            padding: 0.75rem 1rem;
-            border: 2px solid #e1e8ed;
-            border-radius: 8px;
-            font-size: 1rem;
-            transition: all 0.3s ease;
-            background: white;
-        }
-        .form-control:focus {
-            outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-        }
-        .card {
-            background: white;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            margin-bottom: 2rem;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
-        }
-        .card h1 {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-            color: #2c3e50;
-            font-weight: 700;
-        }
-        .card h2 {
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-            color: #2c3e50;
-            font-weight: 600;
-        }
-        .card h3 {
-            font-size: 1.25rem;
-            margin-bottom: 0.75rem;
-            color: #34495e;
-            font-weight: 600;
-        }
-        .info {
-            background: #ecf0f1;
-            padding: 1.5rem;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid #3498db;
-        }
-        .info p {
-            margin-bottom: 0.5rem;
-        }
-        ul {
-            list-style: none;
-            padding-left: 0;
-        }
-        ul li {
-            padding: 0.5rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-        }
-        ul li:before {
-            content: "→";
-            position: absolute;
-            left: 0;
-            color: #667eea;
-            font-weight: bold;
-        }
-        .clearfix::after {
-            content: "";
-            display: table;
-            clear: both;
-        }
-        .status-badge {
-            display: inline-block;
-            padding: 0.35rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-        .status-completed {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-        .status-active {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-        .status-planned {
-            background: #fff3e0;
-            color: #e65100;
-        }
-        @media (max-width: 768px) {
-            .container {
-                padding: 0 1rem;
-            }
-            .navbar {
-                padding: 1rem;
-            }
-            .navbar-main-row {
-                flex-wrap: wrap;
-            }
-            .navbar-user {
-                width: 100%;
-                justify-content: space-between;
-                margin-left: 0;
-            }
-            .card {
-                padding: 1.5rem;
-            }
-        }
-    </style>
+    <title>{% block title %}Система бронирования{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'bookings/site.css' %}">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
-{% load user_tags %}
-    <nav class="navbar{% if user.is_authenticated %}{% if user|get_user_role == 'operator' or user.is_superuser or user|get_user_role == 'admin' %} navbar-expandable{% endif %}{% endif %}">
-        <div class="navbar-main-row clearfix">
-            <div class="navbar-user">
+    <nav class="navbar">
+        <div class="navbar-inner">
+            <div class="nav-identity">
+                <a href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}" class="brand" style="text-decoration: none;">
+                    <span class="brand-mark">SB</span>
+                    <span class="brand-copy">
+                        <span class="brand-kicker">Корпоративная столовая</span>
+                        <span class="brand-title">Система бронирования столовой</span>
+                    </span>
+                </a>
+
                 {% if user.is_authenticated %}
-                <span>Пользователь: {{ user.username }}</span>
-                <a href="{% url 'logout' %}">Выйти</a>
-                {% else %}
-                <a href="{% url 'login' %}">Войти</a>
+                <div class="navbar-user">
+                    <span class="nav-role">
+                        {% if user|get_user_role == 'operator' %}
+                            Оператор
+                        {% elif user.is_superuser or user|get_user_role == 'admin' %}
+                            Администратор
+                        {% else %}
+                            Клиент
+                        {% endif %}
+                    </span>
+                    <span>Пользователь: {{ user.username }}</span>
+                </div>
                 {% endif %}
             </div>
-            {% if user.is_authenticated %}
-                {% if user|get_user_role == 'operator' or user.is_superuser or user|get_user_role == 'admin' %}
-                <div class="navbar-nav-cluster">
-                    <div class="navbar-link-list" id="navbarMainLinks">
+
+            <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-label="Открыть меню">
+                <span aria-hidden="true">☰</span>
+            </button>
+
+            <div class="navbar-links" data-nav-menu>
+                {% if user.is_authenticated %}
                     {% if user|get_user_role == 'operator' %}
-                        <a href="{% url 'operator_cabinet' %}">Главная</a>
-                        <a href="{% url 'operator_reservations' %}">Бронирования</a>
-                        <a href="{% url 'operator_tables' %}">Столики</a>
-                        <a href="{% url 'operator_dishes' %}">Блюда</a>
-                        <a href="{% url 'operator_menus' %}">Меню</a>
-                        <a href="{% url 'operator_news_list' %}">Новости</a>
-                        <a href="{% url 'operator_promotion_list' %}">Акции</a>
-                        <a href="{% url 'operator_complaint_list' %}">Жалобы</a>
+                        <a href="{% url 'operator_cabinet' %}" class="nav-link {% if request.path == '/dashboard/operator/' %}is-active{% endif %}">Главная</a>
+                        <a href="{% url 'operator_reservations' %}" class="nav-link {% if '/dashboard/operator/reservations' in request.path %}is-active{% endif %}">Бронирования</a>
+                        <a href="{% url 'operator_tables' %}" class="nav-link {% if '/dashboard/operator/tables' in request.path %}is-active{% endif %}">Столики</a>
+                        <a href="{% url 'operator_dishes' %}" class="nav-link {% if '/dashboard/operator/dishes' in request.path %}is-active{% endif %}">Блюда</a>
+                        <a href="{% url 'operator_menus' %}" class="nav-link {% if '/dashboard/operator/menus' in request.path or '/dashboard/operator/menu-overrides' in request.path %}is-active{% endif %}">Меню</a>
+                        <a href="{% url 'operator_service_slots' %}" class="nav-link {% if '/dashboard/operator/service-slots' in request.path %}is-active{% endif %}">Слоты</a>
+                        <a href="{% url 'operator_reports' %}" class="nav-link {% if '/dashboard/operator/reports' in request.path %}is-active{% endif %}">Отчёты</a>
+                        <a href="{% url 'operator_news_list' %}" class="nav-link {% if '/dashboard/operator/news' in request.path %}is-active{% endif %}">Новости</a>
+                        <a href="{% url 'operator_promotion_list' %}" class="nav-link {% if '/dashboard/operator/promotions' in request.path %}is-active{% endif %}">Акции</a>
+                        <a href="{% url 'operator_complaint_list' %}" class="nav-link {% if '/dashboard/operator/complaints' in request.path %}is-active{% endif %}">Жалобы</a>
                     {% elif user.is_superuser or user|get_user_role == 'admin' %}
-                        <a href="/admin/">Django Admin</a>
-                        <a href="{% url 'admin_cabinet' %}">Админ-кабинет</a>
-                        <a href="{% url 'operator_cabinet' %}">Оператор</a>
-                        <a href="{% url 'operator_reservations' %}">Бронирования</a>
-                        <a href="{% url 'operator_tables' %}">Столики</a>
-                        <a href="{% url 'operator_dishes' %}">Блюда</a>
-                        <a href="{% url 'operator_menus' %}">Меню</a>
-                        <a href="{% url 'operator_news_list' %}">Новости</a>
-                        <a href="{% url 'operator_promotion_list' %}">Акции</a>
-                        <a href="{% url 'operator_complaint_list' %}">Жалобы</a>
-                        <a href="{% url 'home' %}">Сайт клиента</a>
+                        <a href="{% url 'admin_cabinet' %}" class="nav-link {% if '/dashboard/admin/cabinet' in request.path %}is-active{% endif %}">Главная</a>
+                        <a href="{% url 'admin_integrations' %}" class="nav-link {% if '/dashboard/admin/integrations' in request.path %}is-active{% endif %}">Интеграции</a>
+                        <a href="{% url 'admin_security' %}" class="nav-link {% if '/dashboard/admin/security' in request.path %}is-active{% endif %}">Безопасность</a>
+                        <a href="{% url 'admin_backups' %}" class="nav-link {% if '/dashboard/admin/backups' in request.path %}is-active{% endif %}">Резервные копии</a>
+                        <a href="{% url 'admin_reports' %}" class="nav-link {% if '/dashboard/admin/reports' in request.path %}is-active{% endif %}">Отчёты</a>
+                        <a href="/admin/" class="nav-link">Панель Django</a>
+                    {% else %}
+                        <a href="{% url 'home' %}" class="nav-link {% if request.path == '/' %}is-active{% endif %}">Главная</a>
+                        <a href="{% url 'client_today_menu' %}" class="nav-link {% if '/dashboard/client/menu/today' in request.path %}is-active{% endif %}">Меню на сегодня</a>
+                        <a href="{% url 'client_order_list' %}" class="nav-link {% if '/dashboard/client/orders' in request.path %}is-active{% endif %}">История заказов</a>
+                        <a href="{% url 'client_news_list' %}" class="nav-link {% if '/dashboard/client/news' in request.path %}is-active{% endif %}">Новости</a>
+                        <a href="{% url 'client_promotion_list' %}" class="nav-link {% if '/dashboard/client/promotions' in request.path %}is-active{% endif %}">Акции</a>
+                        <a href="{% url 'client_complaint_create' %}" class="nav-link {% if '/dashboard/client/complaints' in request.path %}is-active{% endif %}">Жалоба</a>
                     {% endif %}
-                    </div>
-                </div>
-                <button type="button" class="navbar-sandwich" id="navbarSandwichBtn" aria-expanded="false" aria-controls="navbarMainLinks" aria-label="Открыть меню">
-                    <span class="sandwich-icon" aria-hidden="true"><span></span><span></span><span></span></span>
-                </button>
+                    <a href="{% url 'logout' %}" class="nav-link">Выйти</a>
                 {% else %}
-                <div class="navbar-nav-cluster">
-                    <div class="navbar-link-list" style="flex-wrap: wrap;">
-                        <a href="{% url 'home' %}">Главная</a>
-                        <a href="{% url 'client_today_menu' %}">Меню на сегодня</a>
-                        <a href="{% url 'client_order_list' %}">История заказов</a>
-                        <a href="{% url 'client_news_list' %}">Новости</a>
-                        <a href="{% url 'client_promotion_list' %}">Акции</a>
-                        <a href="{% url 'client_complaint_create' %}">Жалоба</a>
-                    </div>
-                </div>
+                    <a href="{% url 'login' %}" class="nav-link is-active">Войти</a>
                 {% endif %}
-            {% else %}
-            <div class="navbar-nav-cluster">
-                <div class="navbar-link-list">
-                    <a href="{% url 'home' %}">Главная</a>
-                </div>
             </div>
-            {% endif %}
         </div>
     </nav>
 
-    <div class="container">
+    <main class="container">
         {% if messages %}
             <div class="messages">
                 {% for message in messages %}
-                    <div class="alert alert-{{ message.tags }}">
-                        {{ message }}
-                    </div>
+                    <div class="alert alert-{{ message.tags|default:'info' }}">{{ message }}</div>
                 {% endfor %}
             </div>
         {% endif %}
 
         {% block content %}{% endblock %}
-    </div>
+    </main>
 
+    <script defer src="{% static 'bookings/site.js' %}"></script>
     {% block extra_js %}{% endblock %}
-    <script>
-    (function () {
-        var nav = document.querySelector('.navbar-expandable');
-        if (!nav) return;
-        var row = nav.querySelector('.navbar-main-row');
-        var btn = document.getElementById('navbarSandwichBtn');
-        var list = document.getElementById('navbarMainLinks');
-        if (!row || !btn || !list) return;
-
-        var mq = window.matchMedia('(max-width: 900px)');
-        var resizeT;
-        var OVERFLOW_SLACK = 4;
-        /** Минимальный «воздух» под ряд ссылок; если меньше — сендвич (раньше, чем всё сожмётся). */
-        var LINK_COMFORT_PX = 68;
-
-        function isCompact() {
-            return mq.matches;
-        }
-
-        function closeMenu() {
-            list.classList.remove('is-open');
-            btn.setAttribute('aria-expanded', 'false');
-        }
-
-        /** Строка целиком переполнена или под ссылки осталось мало места (ссылки ещё видны, но уже тесно). */
-        function isHeaderOverflowing() {
-            if (row.scrollWidth > row.clientWidth + OVERFLOW_SLACK) return true;
-            if (list.scrollWidth > list.clientWidth - LINK_COMFORT_PX) return true;
-            return false;
-        }
-
-        /**
-         * Не снимаем navbar--sandwich на каждом тике: при display:none у списка
-         * измерения ломаются, а ResizeObserver ловил наш же переключение класса — отсюда мигание.
-         */
-        function checkOverflow() {
-            if (isCompact()) {
-                if (!nav.classList.contains('navbar--sandwich')) {
-                    nav.classList.add('navbar--sandwich');
-                }
-                return;
-            }
-
-            var sandwich = nav.classList.contains('navbar--sandwich');
-
-            if (!sandwich) {
-                if (isHeaderOverflowing()) {
-                    nav.classList.add('navbar--sandwich');
-                    closeMenu();
-                }
-                return;
-            }
-
-            closeMenu();
-            nav.classList.remove('navbar--sandwich');
-            void row.offsetHeight;
-            if (isHeaderOverflowing()) {
-                nav.classList.add('navbar--sandwich');
-            }
-        }
-
-        function scheduleCheck() {
-            clearTimeout(resizeT);
-            resizeT = setTimeout(checkOverflow, 150);
-        }
-
-        btn.addEventListener('click', function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (!isCompact() && !nav.classList.contains('navbar--sandwich')) return;
-            var open = list.classList.toggle('is-open');
-            btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-        });
-
-        document.addEventListener('click', function (e) {
-            if (!nav.contains(e.target)) closeMenu();
-        });
-
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape') closeMenu();
-        });
-
-        mq.addEventListener('change', scheduleCheck);
-        window.addEventListener('resize', scheduleCheck);
-
-        function runWhenLaidOut() {
-            requestAnimationFrame(function () {
-                checkOverflow();
-            });
-        }
-
-        if (document.readyState === 'complete') {
-            runWhenLaidOut();
-        } else {
-            window.addEventListener('load', runWhenLaidOut);
-        }
-    })();
-    </script>
 </body>
 </html>

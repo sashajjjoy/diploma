@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Подтверждение восстановления{% endblock %}
+
+{% block content %}
+<section class="card hero-card">
+    <div class="page-kicker">Восстановление из копии</div>
+    <h1 class="page-title">Восстановление из резервной копии</h1>
+    <p class="page-subtitle">Это действие может перезаписать текущие данные системы. Подтвердите восстановление логином администратора.</p>
+</section>
+
+<section class="card">
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">Архив</span>
+            <strong>{{ archive.original_name }}</strong>
+        </div>
+    </div>
+    <form method="post" style="margin-top: 1.5rem;">
+        {% csrf_token %}
+        <input type="hidden" name="confirm_token" value="{{ confirm_token }}">
+        <div class="form-group">
+            <label for="confirm_username">Введите текущий логин администратора</label>
+            <input class="form-control" id="confirm_username" name="confirm_username" required>
+        </div>
+        <div class="panel-actions">
+            <button type="submit" class="btn btn-danger">Подтвердить восстановление</button>
+            <a href="{% url 'admin_backups' %}" class="btn btn-secondary">Отмена</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
