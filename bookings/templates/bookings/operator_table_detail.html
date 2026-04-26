@@ -3,28 +3,44 @@
 {% block title %}Столик №{{ table.table_number }}{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Столик №{{ table.table_number }}</h2>
-    
-    <div style="margin: 1.5rem 0;">
-        <p><strong>Номер столика:</strong> {{ table.table_number }}</p>
-        <p><strong>Количество мест:</strong> {{ table.seats }}</p>
+<section class="card hero-card">
+    <div class="page-kicker">Столик</div>
+    <h1 class="page-title">Столик №{{ table.table_number }}</h1>
+    <p class="page-subtitle">Карточка столика с параметрами и последними бронированиями.</p>
+</section>
+
+<section class="card">
+    <div class="info-grid">
+        <div class="info-item">
+            <span class="info-label">Номер столика</span>
+            <strong>{{ table.table_number }}</strong>
+        </div>
+        <div class="info-item">
+            <span class="info-label">Количество мест</span>
+            <strong>{{ table.seats }}</strong>
+        </div>
     </div>
-    
-    <p>
+    <div class="panel-actions" style="margin-top: 1.5rem;">
         <a href="{% url 'operator_table_edit' table.pk %}" class="btn">Редактировать</a>
         <a href="{% url 'operator_table_delete' table.pk %}" class="btn btn-danger">Удалить</a>
-    </p>
-</div>
+        <a href="{% url 'operator_tables' %}" class="btn btn-secondary">К списку столиков</a>
+    </div>
+</section>
 
-<div class="card">
-    <h3>Последние бронирования</h3>
+<section class="card">
+    <div class="section-header">
+        <div>
+            <div class="page-kicker">Последняя активность</div>
+            <h2>Последние бронирования</h2>
+        </div>
+    </div>
     {% if reservations %}
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
                     <th>Дата и время</th>
-                    <th>Пользователь</th>
+                    <th>Клиент</th>
                     <th>Персон</th>
                 </tr>
             </thead>
@@ -38,16 +54,9 @@
                 {% endfor %}
             </tbody>
         </table>
+    </div>
     {% else %}
-        <p>Нет бронирований для этого столика</p>
+    <div class="empty-state">Для этого столика ещё нет бронирований.</div>
     {% endif %}
-</div>
-
-<a href="{% url 'operator_tables' %}" class="btn">Вернуться к списку</a>
+</section>
 {% endblock %}
-
-
-
-
-
-

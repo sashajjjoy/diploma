@@ -3,233 +3,124 @@
 
 {% block title %}Главная страница{% endblock %}
 
-{% block extra_css %}
-<style>
-    .date-buttons, .time-buttons, .duration-buttons {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin-top: 0.5rem;
-    }
-    .date-btn, .date-btn-takeout, .time-btn, .duration-btn {
-        padding: 0.75rem 1.5rem;
-        border: 2px solid #e1e8ed;
-        background: white;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        font-size: 1rem;
-        font-weight: 500;
-        color: #2c3e50;
-    }
-    .date-btn:hover, .date-btn-takeout:hover, .time-btn:hover, .duration-btn:hover {
-        border-color: #667eea;
-        background: #ecf0f1;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.2);
-    }
-    .date-btn.active, .date-btn-takeout.active, .time-btn.active, .duration-btn.active {
-        border-color: #667eea;
-        background: #667eea;
-        color: white;
-        font-weight: 600;
-        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
-    }
-    .guests-counter {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-    }
-    .counter-btn {
-        width: 44px;
-        height: 44px;
-        border: 2px solid #e1e8ed;
-        background: white;
-        border-radius: 8px;
-        font-size: 1.5rem;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s ease;
-        color: #2c3e50;
-        font-weight: 600;
-    }
-    .counter-value {
-        min-width: 50px;
-        text-align: center;
-        font-size: 1.2rem;
-        font-weight: 600;
-    }
-    .time-btn.disabled, .duration-btn.disabled {
-        opacity: 0.6;
-        cursor: not-allowed;
-        pointer-events: none;
-        background: #fee;
-        color: #c33;
-        border-color: #e74c3c;
-        text-decoration: line-through;
-    }
-    .dishes-section {
-        margin-top: 1.5rem;
-        padding-top: 1.5rem;
-        border-top: 2px solid #e1e8ed;
-        display: block;
-    }
-    .dishes-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-        gap: 1.5rem;
-        margin-top: 1rem;
-    }
-    .dish-card {
-        border: 2px solid #e1e8ed;
-        border-radius: 8px;
-        padding: 1rem;
-        background: white;
-        transition: all 0.3s ease;
-    }
-    .dish-card.unavailable {
-        border-color: #e74c3c;
-        background: #fff5f5;
-        opacity: 0.7;
-    }
-    .dish-card img {
-        width: 100%;
-        height: 150px;
-        object-fit: cover;
-        border-radius: 4px;
-        margin-bottom: 0.75rem;
-    }
-    .dish-price, .promo-price {
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #667eea;
-        margin: 0.5rem 0;
-    }
-    .price-old {
-        color: #99a2b3;
-        text-decoration: line-through;
-        margin-right: 0.5rem;
-    }
-    .price-new {
-        color: #c0392b;
-        font-weight: 700;
-    }
-    .dish-description {
-        color: #7f8c8d;
-        font-size: 0.9rem;
-        margin: 0.5rem 0;
-        min-height: 40px;
-    }
-    .dish-quantity, .promo-quantity {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        margin-top: 0.75rem;
-    }
-    .dish-quantity input, .promo-quantity input {
-        width: 76px;
-        padding: 0.5rem;
-        border: 2px solid #e1e8ed;
-        border-radius: 4px;
-        text-align: center;
-    }
-    .promotions-block {
-        margin-top: 1.25rem;
-        padding: 1rem 1.25rem;
-        background: #f8f9ff;
-        border-radius: 8px;
-        border: 1px solid #dde4ff;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="card">
-    <h1>Система бронирования столиков</h1>
-    <p style="font-size: 1.1rem; color: #7f8c8d; margin-bottom: 0; font-weight: 400;">Корпоративная столовая</p>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Корпоративная столовая</div>
+    <h1 class="page-title">Современное бронирование столиков и предзаказ блюд</h1>
+    <p class="page-subtitle">Выбери удобное время, зафиксируй столик или оформи заказ на вынос, а затем собери заказ из доступного меню и действующих акций.</p>
+    <div class="panel-actions">
+        <a href="{% url 'client_today_menu' %}" class="btn">Посмотреть меню на сегодня</a>
+        <a href="{% url 'client_promotion_list' %}" class="btn btn-secondary">Изучить акции</a>
+    </div>
+</section>
 
-<div class="card" style="margin-bottom: 2rem;">
-    <h2 style="margin-bottom: 1.5rem;">Бронирование столика</h2>
+<section class="card">
+    <div class="section-head">
+        <div>
+            <div class="page-kicker">Бронирование</div>
+            <h2 class="page-title">Оформление заказа и брони</h2>
+            <p class="page-subtitle">Весь функционал остался прежним: столик, время, длительность, предзаказ блюд, акции и заказ на вынос.</p>
+        </div>
+    </div>
 
-    <form method="post" id="reservationForm">
+    <form method="post" id="reservationForm" class="stack-lg">
         {% csrf_token %}
 
-        <div class="form-group" style="margin-bottom: 1.5rem;">
-            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
-                <input type="checkbox" name="takeout" id="takeout_checkbox" onchange="toggleTakeout()" style="width: 20px; height: 20px; cursor: pointer;">
-                <span style="font-size: 1.1rem; font-weight: 500;">Взять на вынос</span>
+        <div class="card card-soft">
+            <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin: 0;">
+                <input type="checkbox" name="takeout" id="takeout_checkbox" onchange="toggleTakeout()" style="width: 20px; height: 20px;">
+                <span style="font-size: 1.05rem; font-weight: 700;">Заказ на вынос</span>
             </label>
+            <p class="note" style="margin: 0.65rem 0 0;">Если нужен только takeout, форма скрывает блок со столиком и оставляет выбор даты для предзаказа.</p>
         </div>
 
-        <div id="tableReservationBlock">
-            <div class="form-group">
-                <label>Количество гостей:</label>
-                <div class="guests-counter">
-                    <button type="button" class="counter-btn" onclick="changeGuests(-1)">-</button>
-                    <span class="counter-value" id="guestsValue">2</span>
-                    <button type="button" class="counter-btn" onclick="changeGuests(1)">+</button>
+        <div id="tableReservationBlock" class="stack-lg">
+            <div class="card card-soft">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Количество гостей</label>
+                    <div class="guests-counter">
+                        <button type="button" class="counter-btn" onclick="changeGuests(-1)">−</button>
+                        <span class="counter-value" id="guestsValue">2</span>
+                        <button type="button" class="counter-btn" onclick="changeGuests(1)">+</button>
+                    </div>
+                    <input type="hidden" name="guests_count" id="guests_count" value="2" required>
                 </div>
-                <input type="hidden" name="guests_count" id="guests_count" value="2" required>
             </div>
 
-            <div class="form-group">
-                <label>Дата:</label>
-                <div class="date-buttons">
-                    {% for date_key, date_label, date_obj in available_dates %}
-                        <button type="button" class="date-btn {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectDate('{{ date_key }}')">
-                            {{ date_label }}
-                        </button>
-                    {% endfor %}
+            <div class="card card-soft">
+                <div class="form-group">
+                    <label>Дата бронирования</label>
+                    <div class="date-buttons">
+                        {% for date_key, date_label, date_obj in available_dates %}
+                            <button type="button" class="date-btn {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectDate('{{ date_key }}')">
+                                {{ date_label }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="date" id="selected_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}" required>
                 </div>
-                <input type="hidden" name="date" id="selected_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}" required>
+
+                <div class="divider"></div>
+
+                <div class="form-group">
+                    <label>Время начала</label>
+                    <div class="time-buttons">
+                        {% for time in time_slots %}
+                            <button type="button" class="time-btn {% if forloop.first %}active{% endif %}" data-time="{{ time }}" onclick="selectTime('{{ time }}')">
+                                {{ time }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="time" id="selected_time" value="{% if time_slots %}{{ time_slots.0 }}{% endif %}" required>
+                </div>
+
+                <div class="divider"></div>
+
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Длительность</label>
+                    <div class="duration-buttons">
+                        {% for duration in duration_options %}
+                            <button type="button" class="duration-btn {% if forloop.first %}active{% endif %}" data-duration="{{ duration }}" onclick="selectDuration({{ duration }})">
+                                {{ duration }} минут
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="duration" id="selected_duration" value="{% if duration_options %}{{ duration_options.0 }}{% endif %}" required>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>Время:</label>
-                <div class="time-buttons">
-                    {% for time in time_slots %}
-                        <button type="button" class="time-btn {% if forloop.first %}active{% endif %}" data-time="{{ time }}" onclick="selectTime('{{ time }}')">
-                            {{ time }}
-                        </button>
-                    {% endfor %}
-                </div>
-                <input type="hidden" name="time" id="selected_time" value="{% if time_slots %}{{ time_slots.0 }}{% endif %}" required>
+            <div class="panel-actions">
+                <button type="submit" class="btn btn-success" id="submitReservationBtn">Забронировать</button>
             </div>
-
-            <div class="form-group">
-                <label>Длительность:</label>
-                <div class="duration-buttons">
-                    <button type="button" class="duration-btn active" data-duration="25" onclick="selectDuration(25)">25 минут</button>
-                    <button type="button" class="duration-btn" data-duration="55" onclick="selectDuration(55)">55 минут</button>
-                </div>
-                <input type="hidden" name="duration" id="selected_duration" value="25" required>
-            </div>
-
-            <button type="submit" class="btn btn-success" id="submitReservationBtn" style="margin-top: 1rem;">Забронировать</button>
         </div>
 
-        <div id="takeoutBlock" style="display: none;">
-            <div class="form-group">
-                <label>Дата:</label>
-                <div class="date-buttons">
-                    {% for date_key, date_label, date_obj in available_dates %}
-                        <button type="button" class="date-btn-takeout {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectTakeoutDate('{{ date_key }}')">
-                            {{ date_label }}
-                        </button>
-                    {% endfor %}
+        <div id="takeoutBlock" class="stack-lg" style="display: none;">
+            <div class="card card-soft">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Дата предзаказа</label>
+                    <div class="date-buttons">
+                        {% for date_key, date_label, date_obj in available_dates %}
+                            <button type="button" class="date-btn-takeout {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectTakeoutDate('{{ date_key }}')">
+                                {{ date_label }}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    <input type="hidden" name="takeout_date" id="selected_takeout_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}">
                 </div>
-                <input type="hidden" name="takeout_date" id="selected_takeout_date" value="{% if available_dates %}{{ available_dates.0.0 }}{% endif %}">
             </div>
-
-            <button type="submit" class="btn btn-success" id="submitTakeoutBtn" style="margin-top: 1rem;">Предзаказать</button>
+            <div class="panel-actions">
+                <button type="submit" class="btn btn-success" id="submitTakeoutBtn">Предзаказать</button>
+            </div>
         </div>
 
         {% if combo_promotions %}
         <div class="promotions-block">
-            <h3>Акции — комбо</h3>
+            <div class="section-head">
+                <div>
+                    <h3>Акции и комбо</h3>
+                    <p class="page-subtitle">Комбо доступны в рамках количества персон. Выбери нужное число применений прямо в карточке.</p>
+                </div>
+            </div>
             <div class="dishes-grid">
                 {% for item in combo_promotions %}
                 <div class="dish-card combo-promo-card" data-combo-dish-ids="{% for ci in item.promo.combo_items.all %}{{ ci.dish_id }}{% if not forloop.last %},{% endif %}{% endfor %}">
@@ -238,10 +129,12 @@
                         <span class="price-old">{{ item.original_price|floatformat:2 }} ₽</span>
                         <span class="price-new">{{ item.price_new|floatformat:2 }} ₽</span>
                     </div>
-                    {% if item.promo.description %}<p class="dish-description">{{ item.promo.description|truncatewords:25 }}</p>{% endif %}
+                    {% if item.promo.description %}
+                        <p class="dish-description">{{ item.promo.description|truncatewords:25 }}</p>
+                    {% endif %}
                     <div class="promo-quantity">
-                        <label for="promotion_quantity_{{ item.promo.pk }}">Количество акций:</label>
-                        <input type="number" class="promo-quantity-input" name="promotion_quantity_{{ item.promo.pk }}" id="promotion_quantity_{{ item.promo.pk }}" value="0" min="0" max="2">
+                        <label for="promotion_quantity_{{ item.promo.pk }}">Количество акций</label>
+                        <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ item.promo.pk }}" id="promotion_quantity_{{ item.promo.pk }}" value="0" min="0" max="2">
                     </div>
                 </div>
                 {% endfor %}
@@ -250,7 +143,13 @@
         {% endif %}
 
         <div id="dishesSection" class="dishes-section">
-            <h3 style="margin-bottom: 1rem;">Обычное меню</h3>
+            <div class="section-head">
+                <div>
+                    <div class="page-kicker">Меню</div>
+                    <h3>Обычное меню</h3>
+                    <p class="page-subtitle">Карточки блюд, персональные акции и отзывы о позициях доступны прямо из этого экрана.</p>
+                </div>
+            </div>
             {% if all_dishes %}
             <div class="dishes-grid regular-dishes-grid">
                 {% for dish in all_dishes %}
@@ -259,7 +158,7 @@
                     {% if dish.image %}
                         <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
                     {% else %}
-                        <div style="width: 100%; height: 150px; background: #f0f0f0; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: #999; margin-bottom: 0.75rem;">Нет изображения</div>
+                        <div class="media-placeholder">Нет изображения</div>
                     {% endif %}
                     <h4>{{ dish.name }}</h4>
                     <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
@@ -267,15 +166,15 @@
 
                     {% if proms %}
                         {% for promo_item in proms %}
-                        <div style="margin: 0.75rem 0; padding: 0.75rem; border: 1px solid #e6ebff; border-radius: 8px;">
-                            <div style="font-weight: 600;">{{ promo_item.promo.name }}</div>
+                        <div class="promotions-block" style="padding: 0.9rem;">
+                            <div style="font-weight: 700;">{{ promo_item.promo.name }}</div>
                             <div class="promo-price">
                                 <span class="price-old">{{ promo_item.original_price|floatformat:2 }} ₽</span>
                                 <span class="price-new">{{ promo_item.price_new|floatformat:2 }} ₽</span>
                             </div>
                             <div class="promo-quantity">
-                                <label for="promotion_quantity_{{ promo_item.promo.pk }}">Количество акций:</label>
-                                <input type="number" class="promo-quantity-input" name="promotion_quantity_{{ promo_item.promo.pk }}" id="promotion_quantity_{{ promo_item.promo.pk }}" value="0" min="0" max="2">
+                                <label for="promotion_quantity_{{ promo_item.promo.pk }}">Количество акций</label>
+                                <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ promo_item.promo.pk }}" id="promotion_quantity_{{ promo_item.promo.pk }}" value="0" min="0" max="2">
                             </div>
                         </div>
                         {% endfor %}
@@ -283,73 +182,88 @@
 
                     {% if not proms %}
                     <div class="dish-quantity">
-                        <label for="dish_quantity_{{ dish.pk }}" style="font-size: 0.9rem;">Количество:</label>
-                        <input type="number" name="dish_quantity_{{ dish.pk }}" id="dish_quantity_{{ dish.pk }}" value="0" min="0" max="{{ dish.available_quantity }}">
+                        <label for="dish_quantity_{{ dish.pk }}">Количество</label>
+                        <input type="number" class="form-control" name="dish_quantity_{{ dish.pk }}" id="dish_quantity_{{ dish.pk }}" value="0" min="0" max="{{ dish.available_quantity }}">
                     </div>
                     {% endif %}
-                    <div style="margin-top: 0.75rem;">
-                        <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn">Отзывы</a>
+
+                    <div class="panel-actions" style="margin-top: auto;">
+                        <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn btn-secondary">Отзывы</a>
                     </div>
                 </div>
                 {% endwith %}
                 {% endfor %}
             </div>
             {% else %}
-            <p>Нет доступных блюд для предзаказа.</p>
+            <div class="empty-state">
+                Нет доступных блюд для предзаказа.
+            </div>
             {% endif %}
         </div>
     </form>
-</div>
+</section>
 
 {% if reservations %}
-<div class="card">
-    <h3>Мои бронирования</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Тип</th>
-                <th>Дата и время начала</th>
-                <th>Дата и время окончания</th>
-                <th>Персон</th>
-                <th>Итого</th>
-                <th>Статус</th>
-                <th>Действия</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for reservation in reservations %}
-            <tr>
-                <td>{% if reservation.table %}Столик №{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</td>
-                <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
-                <td>{{ reservation.end_time|date:"d.m.Y H:i" }}</td>
-                <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}-{% endif %}</td>
-                <td>{% if reservation.order_total %}{{ reservation.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
-                <td>
-                    {% now "Y-m-d H:i:s" as now_str %}
-                    {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
-                        <span class="status-badge status-completed">Завершено</span>
-                    {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
-                        <span class="status-badge status-active">Активно</span>
-                    {% else %}
-                        <span class="status-badge status-planned">Запланировано</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <a href="{% url 'reservation_detail' reservation.pk %}" class="btn">Подробнее</a>
-                    <a href="{% url 'client_order_detail' reservation.pk %}" class="btn">Заказ и отзывы</a>
-                    {% if reservation.can_modify_or_cancel %}
-                        <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
-                    {% endif %}
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<section class="card">
+    <div class="section-head">
+        <div>
+            <div class="page-kicker">История</div>
+            <h2>Мои бронирования</h2>
+            <p class="page-subtitle">Здесь доступны текущие и прошлые брони, переход к деталям заказа и возврат к редактированию, если это ещё разрешено.</p>
+        </div>
+    </div>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Тип</th>
+                    <th>Начало</th>
+                    <th>Окончание</th>
+                    <th>Персон</th>
+                    <th>Итого</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reservation in reservations %}
+                <tr>
+                    <td>{% if reservation.table %}Столик №{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</td>
+                    <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
+                    <td>{{ reservation.end_time|date:"d.m.Y H:i" }}</td>
+                    <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}—{% endif %}</td>
+                    <td>{% if reservation.order_total %}{{ reservation.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
+                    <td>
+                        {% now "Y-m-d H:i:s" as now_str %}
+                        {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
+                            <span class="status-badge status-completed">Завершено</span>
+                        {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
+                            <span class="status-badge status-active">Активно</span>
+                        {% else %}
+                            <span class="status-badge status-planned">Запланировано</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="inline-actions">
+                            <a href="{% url 'reservation_detail' reservation.pk %}" class="btn btn-secondary">Подробнее</a>
+                            <a href="{% url 'client_order_detail' reservation.pk %}" class="btn btn-secondary">Заказ и отзывы</a>
+                            {% if reservation.can_modify_or_cancel %}
+                                <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% else %}
-<div class="card">
-    <p>У вас пока нет бронирований. Создайте первое бронирование с помощью формы выше.</p>
-</div>
+<section class="card">
+    <div class="empty-state">
+        У вас пока нет бронирований. Создайте первое бронирование с помощью формы выше.
+    </div>
+</section>
 {% endif %}
 {% endblock %}
 
@@ -358,7 +272,7 @@
     let guestsCount = 2;
     let availableSlots = {};
     const allTimeSlots = [{% for time in time_slots %}'{{ time }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
-    const allDurations = [25, 55];
+    const allDurations = [{% for duration in duration_options %}{{ duration }}{% if not forloop.last %}, {% endif %}{% endfor %}];
     const dishesByDate = {{ dishes_by_date|safe }};
 
     function syncPromotionQuantityLimits() {
@@ -497,8 +411,8 @@
         const checkbox = document.getElementById('takeout_checkbox');
         document.getElementById('tableReservationBlock').style.display = checkbox.checked ? 'none' : 'block';
         document.getElementById('takeoutBlock').style.display = checkbox.checked ? 'block' : 'none';
-        document.getElementById('submitReservationBtn').style.display = checkbox.checked ? 'none' : 'inline-block';
-        document.getElementById('submitTakeoutBtn').style.display = checkbox.checked ? 'inline-block' : 'none';
+        document.getElementById('submitReservationBtn').style.display = checkbox.checked ? 'none' : 'inline-flex';
+        document.getElementById('submitTakeoutBtn').style.display = checkbox.checked ? 'inline-flex' : 'none';
         const dateKey = checkbox.checked ? document.getElementById('selected_takeout_date').value : document.getElementById('selected_date').value;
         if (dateKey) updateDishAvailability(dateKey);
     }

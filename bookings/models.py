@@ -14,9 +14,9 @@ class UserProfile(models.Model):
     ROLE_OPERATOR = "operator"
     ROLE_ADMIN = "admin"
     ROLE_CHOICES = [
-        (ROLE_CLIENT, "Client"),
-        (ROLE_OPERATOR, "Operator"),
-        (ROLE_ADMIN, "Admin"),
+        (ROLE_CLIENT, "Клиент"),
+        (ROLE_OPERATOR, "Оператор"),
+        (ROLE_ADMIN, "Администратор"),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
@@ -324,9 +324,9 @@ class Booking(models.Model):
     STATUS_COMPLETED = "completed"
     STATUS_CANCELLED = "cancelled"
     STATUS_CHOICES = [
-        (STATUS_SCHEDULED, "Scheduled"),
-        (STATUS_COMPLETED, "Completed"),
-        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_SCHEDULED, "Запланировано"),
+        (STATUS_COMPLETED, "Завершено"),
+        (STATUS_CANCELLED, "Отменено"),
     ]
 
     public_id = models.PositiveIntegerField(null=True, blank=True, unique=True, db_index=True)
@@ -371,7 +371,7 @@ class Booking(models.Model):
         working_days = 0
         current = now_date
         while current < target_date_only:
-            if current.weekday() < 5:
+            if ServiceWeekdayWindow.is_service_day(current):
                 working_days += 1
             current += timedelta(days=1)
         return working_days
@@ -380,7 +380,8 @@ class Booking(models.Model):
         now = timezone.localtime(timezone.now())
         if self.start_time <= now:
             return False
-        return (self.start_time - now) >= timedelta(minutes=30)
+        settings = ServiceSlotSettings.get_solo()
+        return (self.start_time - now) >= timedelta(minutes=settings.booking_lead_time_minutes)
 
     def clean(self):
         errors = {}
@@ -391,12 +392,15 @@ class Booking(models.Model):
         if self.start_time:
             now_local = timezone.localtime(timezone.now())
             start_local = timezone.localtime(self.start_time)
-            if now_local < start_local < now_local + timedelta(minutes=30):
+            settings = ServiceSlotSettings.get_solo()
+            if now_local < start_local < now_local + timedelta(minutes=settings.booking_lead_time_minutes):
                 errors["start_time"] = "Booking must be created at least 30 minutes before the selected slot."
+            if not ServiceWeekdayWindow.is_service_day(start_local.date()):
+                errors["start_time"] = "Reservations are available only on active service days."
             working_days = self.get_working_days_until(self.start_time)
-            if working_days > 2:
+            if working_days > settings.max_working_days_ahead:
                 errors["start_time"] = (
-                    "Reservation can be made at most 2 working days ahead. "
+                    f"Reservation can be made at most {settings.max_working_days_ahead} working days ahead. "
                     f"Selected date is {working_days} working days away."
                 )
         if self.table_id and self.start_time and self.end_time:
@@ -572,7 +576,8 @@ class CustomerOrder(models.Model):
         now = timezone.localtime(timezone.now())
         if boundary <= now:
             return False
-        return (boundary - now) >= timedelta(minutes=30)
+        settings = ServiceSlotSettings.get_solo()
+        return (boundary - now) >= timedelta(minutes=settings.booking_lead_time_minutes)
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
@@ -893,3 +898,223 @@ class OrderItemReview(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         super().save(*args, **kwargs)
+
+
+class ServiceSlotSettings(models.Model):
+    booking_lead_time_minutes = models.PositiveIntegerField(default=30, validators=[MinValueValidator(0)])
+    max_working_days_ahead = models.PositiveIntegerField(default=2, validators=[MinValueValidator(0)])
+    slot_step_minutes = models.PositiveIntegerField(default=30, validators=[MinValueValidator(5)])
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Service slot settings"
+        verbose_name_plural = "Service slot settings"
+
+    def __str__(self):
+        return "Service slot settings"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "booking_lead_time_minutes": 30,
+                "max_working_days_ahead": 2,
+                "slot_step_minutes": 30,
+            },
+        )
+        return obj
+
+
+class ServiceWeekdayWindow(models.Model):
+    DAY_CHOICES = [
+        (0, "Понедельник"),
+        (1, "Вторник"),
+        (2, "Среда"),
+        (3, "Четверг"),
+        (4, "Пятница"),
+        (5, "Суббота"),
+        (6, "Воскресенье"),
+    ]
+
+    weekday = models.IntegerField(choices=DAY_CHOICES, unique=True)
+    open_time = models.TimeField(default="12:00")
+    close_time = models.TimeField(default="22:30")
+    is_active = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Service weekday window"
+        verbose_name_plural = "Service weekday windows"
+        ordering = ["weekday"]
+
+    def __str__(self):
+        return f"{self.get_weekday_display()}: {self.open_time} - {self.close_time}"
+
+    def clean(self):
+        if self.close_time <= self.open_time:
+            raise ValidationError({"close_time": "End time must be later than start time."})
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def ensure_defaults(cls):
+        for weekday in range(7):
+            cls.objects.get_or_create(
+                weekday=weekday,
+                defaults={
+                    "open_time": "12:00",
+                    "close_time": "22:30",
+                    "is_active": weekday < 5,
+                },
+            )
+
+    @classmethod
+    def is_service_day(cls, target_date):
+        cls.ensure_defaults()
+        window = cls.objects.filter(weekday=target_date.weekday(), is_active=True).first()
+        return window is not None
+
+
+class ServiceDurationOption(models.Model):
+    duration_minutes = models.PositiveIntegerField(unique=True, validators=[MinValueValidator(5)])
+    is_active = models.BooleanField(default=True)
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Service duration option"
+        verbose_name_plural = "Service duration options"
+        ordering = ["sort_order", "duration_minutes"]
+
+    def __str__(self):
+        return f"{self.duration_minutes} minutes"
+
+    @classmethod
+    def ensure_defaults(cls):
+        defaults = [(25, 10), (55, 20)]
+        for duration, sort_order in defaults:
+            cls.objects.get_or_create(
+                duration_minutes=duration,
+                defaults={"is_active": True, "sort_order": sort_order},
+            )
+
+
+class ExternalIntegration(models.Model):
+    AUTH_NONE = "none"
+    AUTH_BEARER = "bearer"
+    AUTH_API_KEY = "api_key"
+    AUTH_CHOICES = [
+        (AUTH_NONE, "Без авторизации"),
+        (AUTH_BEARER, "Bearer token"),
+        (AUTH_API_KEY, "API key"),
+    ]
+
+    name = models.CharField(max_length=200, unique=True)
+    base_url = models.URLField()
+    auth_type = models.CharField(max_length=20, choices=AUTH_CHOICES, default=AUTH_NONE)
+    secret_token = models.CharField(max_length=255, blank=True)
+    timeout_seconds = models.PositiveIntegerField(default=10, validators=[MinValueValidator(1)])
+    is_active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    last_check_success = models.BooleanField(null=True, blank=True)
+    last_checked_at = models.DateTimeField(null=True, blank=True)
+    last_check_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "External integration"
+        verbose_name_plural = "External integrations"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def masked_secret(self):
+        if not self.secret_token:
+            return ""
+        if len(self.secret_token) <= 4:
+            return "*" * len(self.secret_token)
+        return f"{self.secret_token[:2]}{'*' * (len(self.secret_token) - 4)}{self.secret_token[-2:]}"
+
+
+class SecuritySettings(models.Model):
+    session_timeout_minutes = models.PositiveIntegerField(default=30, validators=[MinValueValidator(1)])
+    max_failed_login_attempts = models.PositiveIntegerField(default=5, validators=[MinValueValidator(1)])
+    login_lockout_minutes = models.PositiveIntegerField(default=15, validators=[MinValueValidator(1)])
+    lockout_enabled = models.BooleanField(default=True)
+    force_password_change_after_admin_reset = models.BooleanField(default=False)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Security settings"
+        verbose_name_plural = "Security settings"
+
+    def __str__(self):
+        return "Security settings"
+
+    @classmethod
+    def get_solo(cls):
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "session_timeout_minutes": 30,
+                "max_failed_login_attempts": 5,
+                "login_lockout_minutes": 15,
+                "lockout_enabled": True,
+                "force_password_change_after_admin_reset": False,
+            },
+        )
+        return obj
+
+
+class LoginAttempt(models.Model):
+    username = models.CharField(max_length=150, unique=True)
+    failed_attempts = models.PositiveIntegerField(default=0)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    last_failed_at = models.DateTimeField(null=True, blank=True)
+    last_ip = models.CharField(max_length=64, blank=True)
+
+    class Meta:
+        verbose_name = "Login attempt"
+        verbose_name_plural = "Login attempts"
+        ordering = ["username"]
+
+    def __str__(self):
+        return self.username
+
+    @property
+    def is_locked(self):
+        return bool(self.locked_until and self.locked_until > timezone.now())
+
+
+class BackupArchive(models.Model):
+    file = models.FileField(upload_to="backups/")
+    original_name = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_backup_archives",
+    )
+    restored_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="restored_backup_archives",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_restored_at = models.DateTimeField(null=True, blank=True)
+    restore_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Backup archive"
+        verbose_name_plural = "Backup archives"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return self.original_name or self.file.name

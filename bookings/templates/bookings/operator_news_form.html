@@ -1,34 +1,47 @@
 {% extends "base.html" %}
-{% block title %}{% if action == 'create' %}Новая новость{% else %}Редактирование{% endif %}{% endblock %}
+
+{% block title %}{% if action == 'create' %}Новая новость{% else %}Редактирование новости{% endif %}{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>{% if action == 'create' %}Новая новость{% else %}Редактировать новость{% endif %}</h2>
+<section class="card hero-card">
+    <div class="page-kicker">Редактор новости</div>
+    <h1 class="page-title">{% if action == 'create' %}Новая новость{% else %}Редактирование новости{% endif %}</h1>
+    <p class="page-subtitle">Соберите публикацию в чистом редакторе и сразу задайте дату выхода и статус.</p>
+</section>
+
+<section class="card">
     <form method="post">
         {% csrf_token %}
-        <div class="form-group">
-            <label>Заголовок</label>
-            <input type="text" name="title" class="form-control" style="width:100%;padding:0.5rem;" required
-                   value="{{ news_item.title|default:'' }}">
+        <div class="form-grid form-grid-2">
+            <div class="form-group">
+                <label for="title">Заголовок</label>
+                <input id="title" type="text" name="title" class="form-control" required value="{{ news_item.title|default:'' }}">
+            </div>
+            <div class="form-group">
+                <label for="summary">Краткое описание</label>
+                <input id="summary" type="text" name="summary" class="form-control" value="{{ news_item.summary|default:'' }}">
+            </div>
         </div>
         <div class="form-group">
-            <label>Кратко</label>
-            <input type="text" name="summary" class="form-control" style="width:100%;padding:0.5rem;"
-                   value="{{ news_item.summary|default:'' }}">
+            <label for="body">Текст новости</label>
+            <textarea id="body" name="body" rows="10" class="form-control" required>{{ news_item.body|default:'' }}</textarea>
         </div>
-        <div class="form-group">
-            <label>Текст</label>
-            <textarea name="body" rows="8" style="width:100%;padding:0.5rem;" required>{{ news_item.body|default:'' }}</textarea>
+        <div class="form-grid form-grid-2">
+            <div class="form-group">
+                <label for="published_at_local">Дата и время публикации</label>
+                <input id="published_at_local" type="datetime-local" name="published_at_local" class="form-control" value="{% if news_item %}{{ news_item.published_at|date:'Y-m-d\\TH:i' }}{% endif %}">
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" name="is_published" {% if news_item %}{% if news_item.is_published %}checked{% endif %}{% else %}checked{% endif %}>
+                    Опубликовано
+                </label>
+            </div>
         </div>
-        <div class="form-group">
-            <label>Дата и время публикации</label>
-            <input type="datetime-local" name="published_at_local" style="padding:0.5rem;"
-                   value="{% if news_item %}{{ news_item.published_at|date:'Y-m-d\TH:i' }}{% endif %}">
-        </div>
-        <label><input type="checkbox" name="is_published" {% if news_item %}{% if news_item.is_published %}checked{% endif %}{% else %}checked{% endif %}> Опубликовано</label>
-        <p style="margin-top:1rem;">
+        <div class="panel-actions">
             <button type="submit" class="btn btn-success">Сохранить</button>
-            <a href="{% url 'operator_news_list' %}" class="btn">Отмена</a>
-        </p>
+            <a href="{% url 'operator_news_list' %}" class="btn btn-secondary">Отмена</a>
+        </div>
     </form>
-</div>
+</section>
 {% endblock %}

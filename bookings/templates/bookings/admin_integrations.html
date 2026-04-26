@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Интеграции{% endblock %}
+
+{% block content %}
+<section class="card hero-card">
+    <div class="page-kicker">Интеграции</div>
+    <h1 class="page-title">Интеграции</h1>
+    <p class="page-subtitle">Универсальные настройки webhook/API-подключений без привязки к одной внешней системе. Создание, обновление, тестирование и отключение доступны из одного интерфейса.</p>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <h3>Добавить новую интеграцию</h3>
+            <p class="page-subtitle">Создай запись и задай базовые параметры подключения.</p>
+        </div>
+    </div>
+    <form method="post" class="stack-md">
+        {% csrf_token %}
+        <input type="hidden" name="integration_id" value="">
+        <div class="form-grid form-grid-3">
+            <div class="form-group">
+                <label for="name">Название</label>
+                <input class="form-control" id="name" name="name" required>
+            </div>
+            <div class="form-group">
+                <label for="base_url">Base URL</label>
+                <input class="form-control" id="base_url" name="base_url" required>
+            </div>
+            <div class="form-group">
+                <label for="auth_type">Авторизация</label>
+                <select class="form-control" id="auth_type" name="auth_type">
+                    {% for value, label in auth_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-grid form-grid-2">
+            <div class="form-group">
+                <label for="secret_token">Секрет / токен</label>
+                <input class="form-control" id="secret_token" name="secret_token">
+            </div>
+            <div class="form-group">
+                <label for="timeout_seconds">Timeout, сек</label>
+                <input class="form-control" id="timeout_seconds" name="timeout_seconds" type="number" min="1" value="10">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="notes">Примечание</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+        </div>
+        <div class="form-group">
+            <label style="display:flex; gap:0.6rem; align-items:center; margin: 0;">
+                <input type="checkbox" name="is_active" checked>
+                <span>Интеграция активна</span>
+            </label>
+        </div>
+        <div class="panel-actions">
+            <button type="submit" class="btn">Сохранить</button>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <h3>Список интеграций</h3>
+    {% if integrations %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>URL</th>
+                    <th>Авторизация</th>
+                    <th>Секрет</th>
+                    <th>Активна</th>
+                    <th>Последняя проверка</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for integration in integrations %}
+                <tr>
+                    <td>{{ integration.name }}</td>
+                    <td>{{ integration.base_url }}</td>
+                    <td>{{ integration.get_auth_type_display }}</td>
+                    <td>{{ integration.masked_secret|default:"—" }}</td>
+                    <td>{% if integration.is_active %}Да{% else %}Нет{% endif %}</td>
+                    <td>
+                        {% if integration.last_checked_at %}
+                            {{ integration.last_checked_at|date:"d.m.Y H:i" }}<br>
+                            {{ integration.last_check_note|default:"" }}
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="inline-actions">
+                            <a href="{% url 'admin_integration_test' integration.pk %}" class="btn btn-secondary">Test connection</a>
+                            <a href="{% url 'admin_integration_delete' integration.pk %}" class="btn btn-danger">Удалить</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Интеграции пока не добавлены.</div>
+    {% endif %}
+</section>
+
+{% if integrations %}
+<section class="card">
+    <h3>Редактирование существующих интеграций</h3>
+    {% for integration in integrations %}
+    <form method="post" class="card card-soft">
+        {% csrf_token %}
+        <input type="hidden" name="integration_id" value="{{ integration.pk }}">
+        <div class="form-grid form-grid-3">
+            <div class="form-group">
+                <label for="name_{{ integration.pk }}">Название</label>
+                <input class="form-control" id="name_{{ integration.pk }}" name="name" value="{{ integration.name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="base_url_{{ integration.pk }}">Base URL</label>
+                <input class="form-control" id="base_url_{{ integration.pk }}" name="base_url" value="{{ integration.base_url }}" required>
+            </div>
+            <div class="form-group">
+                <label for="auth_type_{{ integration.pk }}">Авторизация</label>
+                <select class="form-control" id="auth_type_{{ integration.pk }}" name="auth_type">
+                    {% for value, label in auth_choices %}
+                    <option value="{{ value }}" {% if integration.auth_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="form-grid form-grid-2">
+            <div class="form-group">
+                <label for="secret_token_{{ integration.pk }}">Секрет / токен</label>
+                <input class="form-control" id="secret_token_{{ integration.pk }}" name="secret_token" placeholder="{{ integration.masked_secret }}">
+            </div>
+            <div class="form-group">
+                <label for="timeout_seconds_{{ integration.pk }}">Timeout, сек</label>
+                <input class="form-control" id="timeout_seconds_{{ integration.pk }}" name="timeout_seconds" type="number" min="1" value="{{ integration.timeout_seconds }}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="notes_{{ integration.pk }}">Примечание</label>
+            <textarea class="form-control" id="notes_{{ integration.pk }}" name="notes" rows="3">{{ integration.notes }}</textarea>
+        </div>
+        <div class="form-group">
+            <label style="display:flex; gap:0.6rem; align-items:center; margin: 0;">
+                <input type="checkbox" name="is_active" {% if integration.is_active %}checked{% endif %}>
+                <span>Интеграция активна</span>
+            </label>
+        </div>
+        <div class="panel-actions">
+            <button type="submit" class="btn">Сохранить изменения</button>
+        </div>
+    </form>
+    {% endfor %}
+</section>
+{% endif %}
+{% endblock %}

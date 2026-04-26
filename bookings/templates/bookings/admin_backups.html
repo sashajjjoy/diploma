@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Резервные копии{% endblock %}
+
+{% block content %}
+<section class="card hero-card">
+    <div class="page-kicker">Резервные копии</div>
+    <h1 class="page-title">Резервные копии</h1>
+    <p class="page-subtitle">Создание, загрузка, скачивание и восстановление архивов данных в одном системном экране без изменений в бизнес-логике.</p>
+</section>
+
+<section class="sections-grid">
+    <div class="card">
+        <h3>Создать резервную копию</h3>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="create_backup">
+            <div class="panel-actions">
+                <button type="submit" class="btn">Создать резервную копию</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>Загрузить архив</h3>
+        <form method="post" enctype="multipart/form-data" class="stack-md">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="upload_backup">
+            <div class="form-group">
+                <input class="form-control" type="file" name="backup_file" required>
+            </div>
+            <div class="panel-actions">
+                <button type="submit" class="btn btn-secondary">Загрузить</button>
+            </div>
+        </form>
+    </div>
+</section>
+
+<section class="card">
+    <h3>Доступные архивы</h3>
+    {% if archives %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Файл</th>
+                    <th>Создан</th>
+                    <th>Создал</th>
+                    <th>Последнее восстановление</th>
+                    <th>Восстановлений</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for archive in archives %}
+                <tr>
+                    <td>{{ archive.original_name }}</td>
+                    <td>{{ archive.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ archive.created_by.username|default:"—" }}</td>
+                    <td>{{ archive.last_restored_at|date:"d.m.Y H:i"|default:"—" }}</td>
+                    <td>{{ archive.restore_count }}</td>
+                    <td>
+                        <div class="inline-actions">
+                            <a href="{% url 'admin_backup_download' archive.pk %}" class="btn btn-secondary">Скачать</a>
+                            <a href="{% url 'admin_backup_restore' archive.pk %}" class="btn btn-danger">Восстановить</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Архивов пока нет.</div>
+    {% endif %}
+</section>
+{% endblock %}

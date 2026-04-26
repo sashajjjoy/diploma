@@ -1,26 +1,26 @@
 {% extends "base.html" %}
 
-{% block title %}Удаление новости{% endblock %}
+{% block title %}Удаление интеграции{% endblock %}
 
 {% block content %}
 <section class="card hero-card">
     <div class="page-kicker">Подтверждение действия</div>
-    <h1 class="page-title">Удаление новости</h1>
-    <p class="page-subtitle">Подтвердите удаление публикации из ленты новостей.</p>
+    <h1 class="page-title">Удаление интеграции</h1>
+    <p class="page-subtitle">После подтверждения интеграция будет удалена из конфигурации системы.</p>
 </section>
 
 <section class="card">
     <div class="info-grid">
         <div class="info-item">
-            <span class="info-label">Новость</span>
-            <strong>{{ news_item.title }}</strong>
+            <span class="info-label">Интеграция</span>
+            <strong>{{ integration.name }}</strong>
         </div>
     </div>
     <form method="post" style="margin-top: 1.5rem;">
         {% csrf_token %}
         <div class="panel-actions">
             <button type="submit" class="btn btn-danger">Удалить</button>
-            <a href="{% url 'operator_news_list' %}" class="btn btn-secondary">Отмена</a>
+            <a href="{% url 'admin_integrations' %}" class="btn btn-secondary">Отмена</a>
         </div>
     </form>
 </section>

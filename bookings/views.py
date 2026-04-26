@@ -204,16 +204,12 @@ def is_operator(user):
         return False
 
 
+def is_operator_app(user):
+    return is_operator(user)
+
+
 def is_operator_or_admin(user):
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    try:
-        profile = user.profile
-        return profile.role == 'operator' or profile.is_admin()
-    except UserProfile.DoesNotExist:
-        return False
+    return is_operator(user)
 
 
 def is_admin_app(user):
@@ -1223,7 +1219,11 @@ def operator_dish_create(request):
 def operator_dish_detail(request, pk):
     """Детальная информация о блюде"""
     dish = get_object_or_404(Dish, pk=pk)
-    reservations = ReservationDish.objects.filter(dish=dish).order_by('-reservation__start_time')[:10]
+    reservations = (
+        ReservationDish.objects.filter(dish=dish, order__booking__isnull=False)
+        .select_related('order__booking', 'order__user')
+        .order_by('-order__booking__start_time')[:10]
+    )
     
     context = {
         'dish': dish,

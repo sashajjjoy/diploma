@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Настройки временных слотов{% endblock %}
+
+{% block content %}
+<section class="card hero-card">
+    <div class="page-kicker">Временные слоты</div>
+    <h1 class="page-title">Настройки временных слотов</h1>
+    <p class="page-subtitle">Управляйте шагом слотов, горизонтом бронирования, минимальным временем до записи и окнами обслуживания по дням недели.</p>
+</section>
+
+<section class="card">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-grid form-grid-3">
+            <div class="form-group">
+                <label for="booking_lead_time_minutes">Минимум минут до слота</label>
+                <input class="form-control" type="number" id="booking_lead_time_minutes" name="booking_lead_time_minutes" min="0" value="{{ slot_settings.booking_lead_time_minutes }}">
+            </div>
+            <div class="form-group">
+                <label for="max_working_days_ahead">Максимум рабочих дней вперёд</label>
+                <input class="form-control" type="number" id="max_working_days_ahead" name="max_working_days_ahead" min="0" value="{{ slot_settings.max_working_days_ahead }}">
+            </div>
+            <div class="form-group">
+                <label for="slot_step_minutes">Шаг слота, минут</label>
+                <input class="form-control" type="number" id="slot_step_minutes" name="slot_step_minutes" min="5" value="{{ slot_settings.slot_step_minutes }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="duration_values">Разрешённые длительности бронирования через запятую</label>
+            <input class="form-control" id="duration_values" name="duration_values" value="{{ duration_values }}" placeholder="25, 55">
+        </div>
+
+        <div class="section-header" style="margin-top: 1.5rem;">
+            <div>
+                <div class="page-kicker">Расписание недели</div>
+                <h2>Окна обслуживания по дням недели</h2>
+            </div>
+        </div>
+
+        <div class="table-shell">
+            <table>
+                <thead>
+                    <tr>
+                        <th>День</th>
+                        <th>Активен</th>
+                        <th>Начало</th>
+                        <th>Окончание</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for window in weekday_windows %}
+                    <tr>
+                        <td>{{ window.get_weekday_display }}</td>
+                        <td><input type="checkbox" name="window_active_{{ window.weekday }}" {% if window.is_active %}checked{% endif %}></td>
+                        <td><input class="form-control" type="time" name="window_open_{{ window.weekday }}" value="{{ window.open_time|time:'H:i' }}"></td>
+                        <td><input class="form-control" type="time" name="window_close_{{ window.weekday }}" value="{{ window.close_time|time:'H:i' }}"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="panel-actions" style="margin-top: 1.5rem;">
+            <button type="submit" class="btn btn-success">Сохранить настройки</button>
+            <a href="{% url 'operator_cabinet' %}" class="btn btn-secondary">Назад в кабинет</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

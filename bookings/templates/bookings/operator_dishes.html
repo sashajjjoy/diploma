@@ -3,13 +3,18 @@
 {% block title %}Управление блюдами{% endblock %}
 
 {% block content %}
-<div class="card">
-    <h2>Управление блюдами</h2>
-    <a href="{% url 'operator_dish_create' %}" class="btn btn-success">Добавить блюдо</a>
-</div>
+<section class="card hero-card">
+    <div class="page-kicker">Блюда</div>
+    <h1 class="page-title">Управление блюдами</h1>
+    <p class="page-subtitle">Список всех блюд с быстрым доступом к просмотру, редактированию и удалению. Карточки и таблицы обновлены, но весь функционал остался прежним.</p>
+    <div class="panel-actions">
+        <a href="{% url 'operator_dish_create' %}" class="btn btn-success">Добавить блюдо</a>
+    </div>
+</section>
 
 {% if dishes %}
-    <div class="card">
+<section class="card">
+    <div class="table-shell">
         <table>
             <thead>
                 <tr>
@@ -26,43 +31,43 @@
                     <td>{{ dish.name }}</td>
                     <td>
                         {% if dish.image %}
-                            <img src="{{ dish.image.url }}" alt="{{ dish.name }}" style="max-width: 50px; max-height: 50px;">
+                            <img src="{{ dish.image.url }}" alt="{{ dish.name }}" style="max-width: 58px; max-height: 58px; border-radius: 12px;">
                         {% else %}
-                            <span style="color: #999;">Нет изображения</span>
+                            <span class="note">Нет изображения</span>
                         {% endif %}
                     </td>
                     <td>{{ dish.price|floatformat:2 }} ₽</td>
                     <td>{{ dish.available_quantity }}</td>
                     <td>
-                        <a href="{% url 'operator_dish_detail' dish.pk %}" class="btn">Просмотр</a>
-                        <a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Редактировать</a>
-                        <a href="{% url 'operator_dish_delete' dish.pk %}" class="btn btn-danger">Удалить</a>
+                        <div class="inline-actions">
+                            <a href="{% url 'operator_dish_detail' dish.pk %}" class="btn btn-secondary">Просмотр</a>
+                            <a href="{% url 'operator_dish_edit' dish.pk %}" class="btn">Редактировать</a>
+                            <a href="{% url 'operator_dish_delete' dish.pk %}" class="btn btn-danger">Удалить</a>
+                        </div>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
-        
-        {% if page_obj.has_other_pages %}
-        <div style="margin-top: 1.5rem; display: flex; justify-content: center; align-items: center; gap: 0.5rem;">
-            {% if page_obj.has_previous %}
-                <a href="?page=1" class="btn">« Первая</a>
-                <a href="?page={{ page_obj.previous_page_number }}" class="btn">‹ Предыдущая</a>
-            {% endif %}
-            
-            <span style="padding: 0.5rem 1rem;">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
-            
-            {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="btn">Следующая ›</a>
-                <a href="?page={{ page_obj.paginator.num_pages }}" class="btn">Последняя »</a>
-            {% endif %}
-        </div>
+    </div>
+
+    {% if page_obj.has_other_pages %}
+    <div class="pagination">
+        {% if page_obj.has_previous %}
+            <a href="?page=1" class="btn btn-secondary">« Первая</a>
+            <a href="?page={{ page_obj.previous_page_number }}" class="btn btn-secondary">‹ Предыдущая</a>
+        {% endif %}
+        <span class="pagination__summary">Страница {{ page_obj.number }} из {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" class="btn btn-secondary">Следующая ›</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}" class="btn btn-secondary">Последняя »</a>
         {% endif %}
     </div>
+    {% endif %}
+</section>
 {% else %}
-    <div class="card">
-        <p>Нет блюд. <a href="{% url 'operator_dish_create' %}">Добавьте первое блюдо</a></p>
-    </div>
+<section class="card">
+    <div class="empty-state">Нет блюд. Добавьте первое блюдо.</div>
+</section>
 {% endif %}
 {% endblock %}
-

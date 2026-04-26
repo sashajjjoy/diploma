@@ -1,33 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Акции{% endblock %}
+
+{% block title %}Акции и комбо{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Акции</h2>
-    <a href="{% url 'operator_promotion_create' %}" class="btn btn-success">Новая акция</a>
-</div>
-<div class="card">
+<section class="card hero-card">
+    <div class="page-kicker">Акции</div>
+    <h1 class="page-title">Акции и комбо</h1>
+    <p class="page-subtitle">Настраивайте спецпредложения, меняйте периоды действия и быстро переходите к редактированию.</p>
+    <div class="panel-actions" style="margin-top: 1rem;">
+        <a href="{% url 'operator_promotion_create' %}" class="btn btn-success">Новая акция</a>
+    </div>
+</section>
+
+<section class="card">
     {% if promotions %}
-    <table>
-        <thead>
-            <tr><th>Название</th><th>Тип</th><th>Период</th><th>Активна</th><th></th></tr>
-        </thead>
-        <tbody>
-            {% for p in promotions %}
-            <tr>
-                <td>{{ p.name }}</td>
-                <td>{% if p.kind == 'single_dish' %}Одно блюдо{% else %}Комбо{% endif %}</td>
-                <td>{{ p.valid_from|date:"d.m.Y H:i" }} — {{ p.valid_to|date:"d.m.Y H:i" }}</td>
-                <td>{% if p.is_active %}Да{% else %}Нет{% endif %}</td>
-                <td>
-                    <a href="{% url 'operator_promotion_edit' p.pk %}" class="btn">Изменить</a>
-                    <a href="{% url 'operator_promotion_delete' p.pk %}" class="btn btn-danger">Удалить</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Название</th>
+                    <th>Тип</th>
+                    <th>Период</th>
+                    <th>Активна</th>
+                    <th>Действия</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in promotions %}
+                <tr>
+                    <td>{{ p.name }}</td>
+                    <td>{% if p.kind == 'single_dish' %}Одно блюдо{% else %}Комбо{% endif %}</td>
+                    <td>{{ p.valid_from|date:"d.m.Y H:i" }} — {{ p.valid_to|date:"d.m.Y H:i" }}</td>
+                    <td>{% if p.is_active %}<span class="status-badge status-success">Да</span>{% else %}<span class="status-badge">Нет</span>{% endif %}</td>
+                    <td>
+                        <div class="table-actions">
+                            <a href="{% url 'operator_promotion_edit' p.pk %}" class="btn btn-secondary btn-sm">Редактировать</a>
+                            <a href="{% url 'operator_promotion_delete' p.pk %}" class="btn btn-danger btn-sm">Удалить</a>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
     {% else %}
-    <p>Акций нет.</p>
+    <div class="empty-state">Акции пока не добавлены.</div>
     {% endif %}
-</div>
+</section>
 {% endblock %}
