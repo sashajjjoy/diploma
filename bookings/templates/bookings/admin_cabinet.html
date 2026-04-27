@@ -3,18 +3,6 @@
 {% block title %}Кабинет администратора{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Панель администратора</div>
-    <h1 class="page-title">Кабинет администратора</h1>
-    <p class="page-subtitle">Управление пользователями и ролями, интеграциями, безопасностью, резервными копиями и административной аналитикой собрано в едином системном центре.</p>
-    <div class="panel-actions">
-        <a href="{% url 'admin_integrations' %}" class="btn">Интеграции</a>
-        <a href="{% url 'admin_security' %}" class="btn btn-secondary">Безопасность</a>
-        <a href="{% url 'admin_backups' %}" class="btn btn-secondary">Резервные копии</a>
-        <a href="{% url 'admin_reports' %}" class="btn btn-secondary">Отчёты</a>
-    </div>
-</section>
-
 <section class="admin-grid">
     <div class="admin-kpi"><div class="value">{{ total_users }}</div><div class="stats-label">Всего пользователей</div></div>
     <div class="admin-kpi"><div class="value">{{ clients_total }}</div><div class="stats-label">Клиенты</div></div>

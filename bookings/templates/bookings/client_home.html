@@ -1,25 +1,15 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load promo_tags %}
 
-{% block title %}Главная страница{% endblock %}
+{% block title %}Р“Р»Р°РІРЅР°СЏ СЃС‚СЂР°РЅРёС†Р°{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Корпоративная столовая</div>
-    <h1 class="page-title">Современное бронирование столиков и предзаказ блюд</h1>
-    <p class="page-subtitle">Выбери удобное время, зафиксируй столик или оформи заказ на вынос, а затем собери заказ из доступного меню и действующих акций.</p>
-    <div class="panel-actions">
-        <a href="{% url 'client_today_menu' %}" class="btn">Посмотреть меню на сегодня</a>
-        <a href="{% url 'client_promotion_list' %}" class="btn btn-secondary">Изучить акции</a>
-    </div>
-</section>
-
 <section class="card">
     <div class="section-head">
         <div>
-            <div class="page-kicker">Бронирование</div>
-            <h2 class="page-title">Оформление заказа и брони</h2>
-            <p class="page-subtitle">Весь функционал остался прежним: столик, время, длительность, предзаказ блюд, акции и заказ на вынос.</p>
+            <div class="page-kicker">Р‘СЂРѕРЅРёСЂРѕРІР°РЅРёРµ</div>
+            <h2 class="page-title">РћС„РѕСЂРјР»РµРЅРёРµ Р·Р°РєР°Р·Р° Рё Р±СЂРѕРЅРё</h2>
+            <p class="page-subtitle">Р’РµСЃСЊ С„СѓРЅРєС†РёРѕРЅР°Р» РѕСЃС‚Р°Р»СЃСЏ РїСЂРµР¶РЅРёРј: СЃС‚РѕР»РёРє, РІСЂРµРјСЏ, РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ, РїСЂРµРґР·Р°РєР°Р· Р±Р»СЋРґ, Р°РєС†РёРё Рё Р·Р°РєР°Р· РЅР° РІС‹РЅРѕСЃ.</p>
         </div>
     </div>
 
@@ -29,17 +19,16 @@
         <div class="card card-soft">
             <label style="display: flex; align-items: center; gap: 0.75rem; cursor: pointer; margin: 0;">
                 <input type="checkbox" name="takeout" id="takeout_checkbox" onchange="toggleTakeout()" style="width: 20px; height: 20px;">
-                <span style="font-size: 1.05rem; font-weight: 700;">Заказ на вынос</span>
+                <span style="font-size: 1.05rem; font-weight: 700;">Р—Р°РєР°Р· РЅР° РІС‹РЅРѕСЃ</span>
             </label>
-            <p class="note" style="margin: 0.65rem 0 0;">Если нужен только takeout, форма скрывает блок со столиком и оставляет выбор даты для предзаказа.</p>
         </div>
 
         <div id="tableReservationBlock" class="stack-lg">
             <div class="card card-soft">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Количество гостей</label>
+                    <label>РљРѕР»РёС‡РµСЃС‚РІРѕ РіРѕСЃС‚РµР№</label>
                     <div class="guests-counter">
-                        <button type="button" class="counter-btn" onclick="changeGuests(-1)">−</button>
+                        <button type="button" class="counter-btn" onclick="changeGuests(-1)">в€’</button>
                         <span class="counter-value" id="guestsValue">2</span>
                         <button type="button" class="counter-btn" onclick="changeGuests(1)">+</button>
                     </div>
@@ -49,7 +38,7 @@
 
             <div class="card card-soft">
                 <div class="form-group">
-                    <label>Дата бронирования</label>
+                    <label>Р”Р°С‚Р° Р±СЂРѕРЅРёСЂРѕРІР°РЅРёСЏ</label>
                     <div class="date-buttons">
                         {% for date_key, date_label, date_obj in available_dates %}
                             <button type="button" class="date-btn {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectDate('{{ date_key }}')">
@@ -63,7 +52,7 @@
                 <div class="divider"></div>
 
                 <div class="form-group">
-                    <label>Время начала</label>
+                    <label>Р’СЂРµРјСЏ РЅР°С‡Р°Р»Р°</label>
                     <div class="time-buttons">
                         {% for time in time_slots %}
                             <button type="button" class="time-btn {% if forloop.first %}active{% endif %}" data-time="{{ time }}" onclick="selectTime('{{ time }}')">
@@ -77,11 +66,11 @@
                 <div class="divider"></div>
 
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Длительность</label>
+                    <label>Р”Р»РёС‚РµР»СЊРЅРѕСЃС‚СЊ</label>
                     <div class="duration-buttons">
                         {% for duration in duration_options %}
                             <button type="button" class="duration-btn {% if forloop.first %}active{% endif %}" data-duration="{{ duration }}" onclick="selectDuration({{ duration }})">
-                                {{ duration }} минут
+                                {{ duration }} РјРёРЅСѓС‚
                             </button>
                         {% endfor %}
                     </div>
@@ -90,14 +79,14 @@
             </div>
 
             <div class="panel-actions">
-                <button type="submit" class="btn btn-success" id="submitReservationBtn">Забронировать</button>
+                <button type="submit" class="btn btn-success" id="submitReservationBtn">Р—Р°Р±СЂРѕРЅРёСЂРѕРІР°С‚СЊ</button>
             </div>
         </div>
 
         <div id="takeoutBlock" class="stack-lg" style="display: none;">
             <div class="card card-soft">
                 <div class="form-group" style="margin-bottom: 0;">
-                    <label>Дата предзаказа</label>
+                    <label>Р”Р°С‚Р° РїСЂРµРґР·Р°РєР°Р·Р°</label>
                     <div class="date-buttons">
                         {% for date_key, date_label, date_obj in available_dates %}
                             <button type="button" class="date-btn-takeout {% if forloop.first %}active{% endif %}" data-date="{{ date_key }}" onclick="selectTakeoutDate('{{ date_key }}')">
@@ -109,7 +98,7 @@
                 </div>
             </div>
             <div class="panel-actions">
-                <button type="submit" class="btn btn-success" id="submitTakeoutBtn">Предзаказать</button>
+                <button type="submit" class="btn btn-success" id="submitTakeoutBtn">РџСЂРµРґР·Р°РєР°Р·Р°С‚СЊ</button>
             </div>
         </div>
 
@@ -117,8 +106,8 @@
         <div class="promotions-block">
             <div class="section-head">
                 <div>
-                    <h3>Акции и комбо</h3>
-                    <p class="page-subtitle">Комбо доступны в рамках количества персон. Выбери нужное число применений прямо в карточке.</p>
+                    <h3>РђРєС†РёРё Рё РєРѕРјР±Рѕ</h3>
+                    <p class="page-subtitle">РљРѕРјР±Рѕ РґРѕСЃС‚СѓРїРЅС‹ РІ СЂР°РјРєР°С… РєРѕР»РёС‡РµСЃС‚РІР° РїРµСЂСЃРѕРЅ. Р’С‹Р±РµСЂРё РЅСѓР¶РЅРѕРµ С‡РёСЃР»Рѕ РїСЂРёРјРµРЅРµРЅРёР№ РїСЂСЏРјРѕ РІ РєР°СЂС‚РѕС‡РєРµ.</p>
                 </div>
             </div>
             <div class="dishes-grid">
@@ -126,15 +115,15 @@
                 <div class="dish-card combo-promo-card" data-combo-dish-ids="{% for ci in item.promo.combo_items.all %}{{ ci.dish_id }}{% if not forloop.last %},{% endif %}{% endfor %}">
                     <h4>{{ item.promo.name }}</h4>
                     <div class="promo-price">
-                        <span class="price-old">{{ item.original_price|floatformat:2 }} ₽</span>
-                        <span class="price-new">{{ item.price_new|floatformat:2 }} ₽</span>
+                        <span class="price-old">{{ item.original_price|floatformat:2 }} в‚Ѕ</span>
+                        <span class="price-new">{{ item.price_new|floatformat:2 }} в‚Ѕ</span>
                     </div>
                     {% if item.promo.description %}
                         <p class="dish-description">{{ item.promo.description|truncatewords:25 }}</p>
                     {% endif %}
                     <div class="promo-quantity">
-                        <label for="promotion_quantity_{{ item.promo.pk }}">Количество акций</label>
-                        <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ item.promo.pk }}" id="promotion_quantity_{{ item.promo.pk }}" value="0" min="0" max="2">
+                        <label for="promotion_quantity_{{ item.promo.pk }}">РљРѕР»РёС‡РµСЃС‚РІРѕ Р°РєС†РёР№</label>
+                        <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ item.promo.pk }}" id="promotion_quantity_{{ item.promo.pk }}" value="0" min="0" max="2" data-promo-kind="combo">
                     </div>
                 </div>
                 {% endfor %}
@@ -145,9 +134,9 @@
         <div id="dishesSection" class="dishes-section">
             <div class="section-head">
                 <div>
-                    <div class="page-kicker">Меню</div>
-                    <h3>Обычное меню</h3>
-                    <p class="page-subtitle">Карточки блюд, персональные акции и отзывы о позициях доступны прямо из этого экрана.</p>
+                    <div class="page-kicker">РњРµРЅСЋ</div>
+                    <h3>РћР±С‹С‡РЅРѕРµ РјРµРЅСЋ</h3>
+                    <p class="page-subtitle">РљР°СЂС‚РѕС‡РєРё Р±Р»СЋРґ, РїРµСЂСЃРѕРЅР°Р»СЊРЅС‹Рµ Р°РєС†РёРё Рё РѕС‚Р·С‹РІС‹ Рѕ РїРѕР·РёС†РёСЏС… РґРѕСЃС‚СѓРїРЅС‹ РїСЂСЏРјРѕ РёР· СЌС‚РѕРіРѕ СЌРєСЂР°РЅР°.</p>
                 </div>
             </div>
             {% if all_dishes %}
@@ -158,23 +147,23 @@
                     {% if dish.image %}
                         <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
                     {% else %}
-                        <div class="media-placeholder">Нет изображения</div>
+                        <div class="media-placeholder">РќРµС‚ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ</div>
                     {% endif %}
                     <h4>{{ dish.name }}</h4>
-                    <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
-                    <div class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:15 }}</div>
+                    <div class="dish-price">{{ dish.price|floatformat:2 }} в‚Ѕ</div>
+                    <div class="dish-description">{{ dish.description|default:"Р‘РµР· РѕРїРёСЃР°РЅРёСЏ"|truncatewords:15 }}</div>
 
                     {% if proms %}
                         {% for promo_item in proms %}
                         <div class="promotions-block" style="padding: 0.9rem;">
                             <div style="font-weight: 700;">{{ promo_item.promo.name }}</div>
                             <div class="promo-price">
-                                <span class="price-old">{{ promo_item.original_price|floatformat:2 }} ₽</span>
-                                <span class="price-new">{{ promo_item.price_new|floatformat:2 }} ₽</span>
+                                <span class="price-old">{{ promo_item.original_price|floatformat:2 }} в‚Ѕ</span>
+                                <span class="price-new">{{ promo_item.price_new|floatformat:2 }} в‚Ѕ</span>
                             </div>
                             <div class="promo-quantity">
-                                <label for="promotion_quantity_{{ promo_item.promo.pk }}">Количество акций</label>
-                                <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ promo_item.promo.pk }}" id="promotion_quantity_{{ promo_item.promo.pk }}" value="0" min="0" max="2">
+                                <label for="promotion_quantity_{{ promo_item.promo.pk }}">РљРѕР»РёС‡РµСЃС‚РІРѕ Р°РєС†РёР№</label>
+                                <input type="number" class="promo-quantity-input form-control" name="promotion_quantity_{{ promo_item.promo.pk }}" id="promotion_quantity_{{ promo_item.promo.pk }}" value="0" min="0" max="2" data-promo-kind="single">
                             </div>
                         </div>
                         {% endfor %}
@@ -182,13 +171,13 @@
 
                     {% if not proms %}
                     <div class="dish-quantity">
-                        <label for="dish_quantity_{{ dish.pk }}">Количество</label>
-                        <input type="number" class="form-control" name="dish_quantity_{{ dish.pk }}" id="dish_quantity_{{ dish.pk }}" value="0" min="0" max="{{ dish.available_quantity }}">
+                        <label for="dish_quantity_{{ dish.pk }}">РљРѕР»РёС‡РµСЃС‚РІРѕ</label>
+                        <input type="number" class="form-control regular-dish-quantity-input" name="dish_quantity_{{ dish.pk }}" id="dish_quantity_{{ dish.pk }}" value="0" min="0" max="{{ dish.available_quantity }}" data-stock="{{ dish.available_quantity }}">
                     </div>
                     {% endif %}
 
                     <div class="panel-actions" style="margin-top: auto;">
-                        <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn btn-secondary">Отзывы</a>
+                        <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn btn-secondary">РћС‚Р·С‹РІС‹</a>
                     </div>
                 </div>
                 {% endwith %}
@@ -196,7 +185,7 @@
             </div>
             {% else %}
             <div class="empty-state">
-                Нет доступных блюд для предзаказа.
+                РќРµС‚ РґРѕСЃС‚СѓРїРЅС‹С… Р±Р»СЋРґ РґР»СЏ РїСЂРµРґР·Р°РєР°Р·Р°.
             </div>
             {% endif %}
         </div>
@@ -207,48 +196,48 @@
 <section class="card">
     <div class="section-head">
         <div>
-            <div class="page-kicker">История</div>
-            <h2>Мои бронирования</h2>
-            <p class="page-subtitle">Здесь доступны текущие и прошлые брони, переход к деталям заказа и возврат к редактированию, если это ещё разрешено.</p>
+            <div class="page-kicker">РСЃС‚РѕСЂРёСЏ</div>
+            <h2>РњРѕРё Р±СЂРѕРЅРёСЂРѕРІР°РЅРёСЏ</h2>
+            <p class="page-subtitle">Р—РґРµСЃСЊ РґРѕСЃС‚СѓРїРЅС‹ С‚РµРєСѓС‰РёРµ Рё РїСЂРѕС€Р»С‹Рµ Р±СЂРѕРЅРё, РїРµСЂРµС…РѕРґ Рє РґРµС‚Р°Р»СЏРј Р·Р°РєР°Р·Р° Рё РІРѕР·РІСЂР°С‚ Рє СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЋ, РµСЃР»Рё СЌС‚Рѕ РµС‰С‘ СЂР°Р·СЂРµС€РµРЅРѕ.</p>
         </div>
     </div>
     <div class="table-shell">
         <table>
             <thead>
                 <tr>
-                    <th>Тип</th>
-                    <th>Начало</th>
-                    <th>Окончание</th>
-                    <th>Персон</th>
-                    <th>Итого</th>
-                    <th>Статус</th>
-                    <th>Действия</th>
+                    <th>РўРёРї</th>
+                    <th>РќР°С‡Р°Р»Рѕ</th>
+                    <th>РћРєРѕРЅС‡Р°РЅРёРµ</th>
+                    <th>РџРµСЂСЃРѕРЅ</th>
+                    <th>РС‚РѕРіРѕ</th>
+                    <th>РЎС‚Р°С‚СѓСЃ</th>
+                    <th>Р”РµР№СЃС‚РІРёСЏ</th>
                 </tr>
             </thead>
             <tbody>
                 {% for reservation in reservations %}
                 <tr>
-                    <td>{% if reservation.table %}Столик №{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}</td>
+                    <td>{% if reservation.table %}РЎС‚РѕР»РёРє в„–{{ reservation.table.table_number }}{% else %}Р—Р°РєР°Р· РЅР° РІС‹РЅРѕСЃ{% endif %}</td>
                     <td>{{ reservation.start_time|date:"d.m.Y H:i" }}</td>
                     <td>{{ reservation.end_time|date:"d.m.Y H:i" }}</td>
-                    <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}—{% endif %}</td>
-                    <td>{% if reservation.order_total %}{{ reservation.order_total|floatformat:2 }} ₽{% else %}—{% endif %}</td>
+                    <td>{% if reservation.table %}{{ reservation.guests_count }}{% else %}вЂ”{% endif %}</td>
+                    <td>{% if reservation.order_total %}{{ reservation.order_total|floatformat:2 }} в‚Ѕ{% else %}вЂ”{% endif %}</td>
                     <td>
                         {% now "Y-m-d H:i:s" as now_str %}
                         {% if reservation.end_time|date:"Y-m-d H:i:s" < now_str %}
-                            <span class="status-badge status-completed">Завершено</span>
+                            <span class="status-badge status-completed">Р—Р°РІРµСЂС€РµРЅРѕ</span>
                         {% elif reservation.start_time|date:"Y-m-d H:i:s" <= now_str and now_str <= reservation.end_time|date:"Y-m-d H:i:s" %}
-                            <span class="status-badge status-active">Активно</span>
+                            <span class="status-badge status-active">РђРєС‚РёРІРЅРѕ</span>
                         {% else %}
-                            <span class="status-badge status-planned">Запланировано</span>
+                            <span class="status-badge status-planned">Р—Р°РїР»Р°РЅРёСЂРѕРІР°РЅРѕ</span>
                         {% endif %}
                     </td>
                     <td>
                         <div class="inline-actions">
-                            <a href="{% url 'reservation_detail' reservation.pk %}" class="btn btn-secondary">Подробнее</a>
-                            <a href="{% url 'client_order_detail' reservation.pk %}" class="btn btn-secondary">Заказ и отзывы</a>
+                            <a href="{% url 'reservation_detail' reservation.pk %}" class="btn btn-secondary">РџРѕРґСЂРѕР±РЅРµРµ</a>
+                            <a href="{% url 'client_order_detail' reservation.pk %}" class="btn btn-secondary">Р—Р°РєР°Р· Рё РѕС‚Р·С‹РІС‹</a>
                             {% if reservation.can_modify_or_cancel %}
-                                <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">Изменить</a>
+                                <a href="{% url 'reservation_edit' reservation.pk %}" class="btn">РР·РјРµРЅРёС‚СЊ</a>
                             {% endif %}
                         </div>
                     </td>
@@ -261,7 +250,7 @@
 {% else %}
 <section class="card">
     <div class="empty-state">
-        У вас пока нет бронирований. Создайте первое бронирование с помощью формы выше.
+        РЈ РІР°СЃ РїРѕРєР° РЅРµС‚ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёР№. РЎРѕР·РґР°Р№С‚Рµ РїРµСЂРІРѕРµ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёРµ СЃ РїРѕРјРѕС‰СЊСЋ С„РѕСЂРјС‹ РІС‹С€Рµ.
     </div>
 </section>
 {% endif %}
@@ -271,15 +260,33 @@
 <script>
     let guestsCount = 2;
     let availableSlots = {};
+    const MAX_DISHES_PER_GUEST = 5;
     const allTimeSlots = [{% for time in time_slots %}'{{ time }}'{% if not forloop.last %}, {% endif %}{% endfor %}];
     const allDurations = [{% for duration in duration_options %}{{ duration }}{% if not forloop.last %}, {% endif %}{% endfor %}];
     const dishesByDate = {{ dishes_by_date|safe }};
 
     function syncPromotionQuantityLimits() {
+        const effectiveGuests = document.getElementById('takeout_checkbox').checked ? 1 : guestsCount;
+        const comboLimit = effectiveGuests;
+        const singleDishLimit = effectiveGuests * MAX_DISHES_PER_GUEST;
         document.querySelectorAll('.promo-quantity-input').forEach(input => {
-            input.max = guestsCount;
-            if (parseInt(input.value || '0', 10) > guestsCount) {
-                input.value = guestsCount;
+            const limit = input.dataset.promoKind === 'combo' ? comboLimit : singleDishLimit;
+            input.max = limit;
+            if (parseInt(input.value || '0', 10) > limit) {
+                input.value = limit;
+            }
+        });
+    }
+
+    function syncRegularDishQuantityLimits() {
+        const effectiveGuests = document.getElementById('takeout_checkbox').checked ? 1 : guestsCount;
+        const perDishLimit = effectiveGuests * MAX_DISHES_PER_GUEST;
+        document.querySelectorAll('.regular-dish-quantity-input').forEach(input => {
+            const stock = parseInt(input.dataset.stock || input.max || '0', 10);
+            const nextMax = Math.max(0, Math.min(stock, perDishLimit));
+            input.max = nextMax;
+            if (parseInt(input.value || '0', 10) > nextMax) {
+                input.value = nextMax;
             }
         });
     }
@@ -291,6 +298,7 @@
         document.getElementById('guestsValue').textContent = guestsCount;
         document.getElementById('guests_count').value = guestsCount;
         syncPromotionQuantityLimits();
+        syncRegularDishQuantityLimits();
         updateAvailableSlots();
     }
 
@@ -413,12 +421,14 @@
         document.getElementById('takeoutBlock').style.display = checkbox.checked ? 'block' : 'none';
         document.getElementById('submitReservationBtn').style.display = checkbox.checked ? 'none' : 'inline-flex';
         document.getElementById('submitTakeoutBtn').style.display = checkbox.checked ? 'inline-flex' : 'none';
+        syncRegularDishQuantityLimits();
         const dateKey = checkbox.checked ? document.getElementById('selected_takeout_date').value : document.getElementById('selected_date').value;
         if (dateKey) updateDishAvailability(dateKey);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
         syncPromotionQuantityLimits();
+        syncRegularDishQuantityLimits();
         updateAvailableSlots();
         const selectedDate = document.getElementById('selected_date');
         if (selectedDate && selectedDate.value) {
@@ -427,3 +437,4 @@
     });
 </script>
 {% endblock %}
+

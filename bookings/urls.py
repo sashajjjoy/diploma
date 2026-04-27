@@ -1,9 +1,8 @@
-from django.urls import path
+﻿from django.urls import path
 from . import views
 from . import views_booking
 
 urlpatterns = [
-    # Общие
     path('', views.dashboard, name='dashboard'),
     path('admin/cabinet/', views_booking.admin_cabinet, name='admin_cabinet'),
     path('admin/integrations/', views_booking.admin_integrations, name='admin_integrations'),
@@ -15,17 +14,14 @@ urlpatterns = [
     path('admin/backups/<int:pk>/restore/', views_booking.admin_backup_restore, name='admin_backup_restore'),
     path('admin/reports/', views_booking.admin_reports, name='admin_reports'),
     
-    # API для получения занятых временных слотов
     path('api/occupied-slots/', views_booking.get_occupied_time_slots, name='get_occupied_time_slots'),
     path('api/available-slots/', views_booking.check_available_time_slots, name='check_available_time_slots'),
     
-    # Бронирования клиента
     path('reservations/create/', views_booking.reservation_create, name='reservation_create'),
     path('client/reservations/<int:pk>/', views_booking.reservation_detail, name='reservation_detail'),
     path('client/reservations/<int:pk>/edit/', views_booking.reservation_edit, name='reservation_edit'),
     path('client/reservations/<int:pk>/delete/', views_booking.reservation_delete, name='reservation_delete'),
     
-    # Личный кабинет оператора
     path('operator/', views_booking.operator_cabinet, name='operator_cabinet'),
     path('operator/reservations/', views_booking.operator_reservations, name='operator_reservations'),
     path('operator/reservations/<int:pk>/', views_booking.operator_reservation_detail, name='operator_reservation_detail'),
@@ -33,21 +29,18 @@ urlpatterns = [
     path('operator/service-slots/', views_booking.operator_service_slots, name='operator_service_slots'),
     path('operator/reports/', views_booking.operator_reports, name='operator_reports'),
     
-    # Управление столиками (оператор)
     path('operator/tables/', views.operator_tables, name='operator_tables'),
     path('operator/tables/create/', views.operator_table_create, name='operator_table_create'),
     path('operator/tables/<int:pk>/', views.operator_table_detail, name='operator_table_detail'),
     path('operator/tables/<int:pk>/edit/', views.operator_table_edit, name='operator_table_edit'),
     path('operator/tables/<int:pk>/delete/', views.operator_table_delete, name='operator_table_delete'),
     
-    # Управление блюдами (оператор)
     path('operator/dishes/', views.operator_dishes, name='operator_dishes'),
     path('operator/dishes/create/', views.operator_dish_create, name='operator_dish_create'),
     path('operator/dishes/<int:pk>/', views.operator_dish_detail, name='operator_dish_detail'),
     path('operator/dishes/<int:pk>/edit/', views.operator_dish_edit, name='operator_dish_edit'),
     path('operator/dishes/<int:pk>/delete/', views.operator_dish_delete, name='operator_dish_delete'),
     
-    # Управление меню (оператор)
     path('operator/menus/', views.operator_menus, name='operator_menus'),
     path('operator/menus/view-date/', views.operator_menu_view_date, name='operator_menu_view_date'),
     path('operator/menus/create-all/', views.operator_menus_create_all, name='operator_menus_create_all'),
@@ -82,3 +75,4 @@ urlpatterns = [
     path('client/news/<int:pk>/', views.client_news_detail, name='client_news_detail'),
     path('client/promotions/', views.client_promotion_list, name='client_promotion_list'),
 ]
+

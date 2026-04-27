@@ -3,20 +3,6 @@
 {% block title %}Кабинет оператора{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Панель оператора</div>
-    <h1 class="page-title">Рабочий кабинет оператора столовой</h1>
-    <p class="page-subtitle">Бронирования, меню, временные слоты, акции, новости, жалобы, отзывы и отчёты собраны в одном современном рабочем контуре.</p>
-    <div class="panel-actions">
-        <a href="{% url 'operator_reservations' %}" class="btn">Бронирования</a>
-        <a href="{% url 'operator_tables' %}" class="btn btn-secondary">Столики</a>
-        <a href="{% url 'operator_dishes' %}" class="btn btn-secondary">Блюда</a>
-        <a href="{% url 'operator_menus' %}" class="btn btn-secondary">Меню</a>
-        <a href="{% url 'operator_service_slots' %}" class="btn btn-secondary">Слоты</a>
-        <a href="{% url 'operator_reports' %}" class="btn btn-secondary">Отчёты</a>
-    </div>
-</section>
-
 <section class="operator-grid">
     <div class="operator-kpi"><div class="value">{{ reservations_today }}</div><div class="stats-label">Бронирования сегодня</div></div>
     <div class="operator-kpi"><div class="value">{{ reservations_active }}</div><div class="stats-label">Активные сейчас</div></div>

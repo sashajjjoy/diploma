@@ -12,14 +12,6 @@
     <nav class="navbar">
         <div class="navbar-inner">
             <div class="nav-identity">
-                <a href="{% if user.is_authenticated %}{% url 'home' %}{% else %}{% url 'login' %}{% endif %}" class="brand" style="text-decoration: none;">
-                    <span class="brand-mark">SB</span>
-                    <span class="brand-copy">
-                        <span class="brand-kicker">Корпоративная столовая</span>
-                        <span class="brand-title">Система бронирования столовой</span>
-                    </span>
-                </a>
-
                 {% if user.is_authenticated %}
                 <div class="navbar-user">
                     <span class="nav-role">

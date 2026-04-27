@@ -11,6 +11,7 @@ from bookings.models import (
     OrderAppliedPromotion,
     OrderItem,
     OrderItemReview,
+    Promotion,
     UserProfile,
 )
 from bookings.services.availability import build_reservation_datetimes, find_available_table, is_booking_time_allowed
@@ -22,6 +23,8 @@ from bookings.services.promotions import (
     normalize_promotion_quantities_input,
     resolve_promotions_for_checkout_input,
 )
+
+MAX_SAME_DISHES_PER_GUEST = 5
 
 
 def booking_detail_queryset():
@@ -104,6 +107,71 @@ def _validate_stock(dish_qty_map, exclude_order=None):
             errors.append({dish.pk: f'Недостаточно блюда "{dish.name}". Доступно: {available}.'})
     if errors:
         raise ValidationError({"dishes": errors})
+
+
+def _validate_plain_dish_limits(dish_qty_map, guests_count):
+    max_per_dish = max(1, int(guests_count)) * MAX_SAME_DISHES_PER_GUEST
+    errors = []
+    for dish in Dish.objects.filter(pk__in=list(dish_qty_map.keys())):
+        requested = dish_qty_map.get(dish.pk, 0)
+        if requested > max_per_dish:
+            errors.append(
+                {
+                    dish.pk: (
+                        f'Блюдо "{dish.name}" можно заказать не более '
+                        f"{MAX_SAME_DISHES_PER_GUEST} раз на одного человека. "
+                        f"Максимум для этого заказа: {max_per_dish}."
+                    )
+                }
+            )
+    if errors:
+        raise ValidationError({"dishes": errors})
+
+
+def _load_requested_promotions(promotion_quantities):
+    normalized_quantities = {
+        int(promotion_id): int(quantity)
+        for promotion_id, quantity in (promotion_quantities or {}).items()
+        if int(quantity) > 0
+    }
+    if not normalized_quantities:
+        return []
+
+    promotions = list(
+        Promotion.objects.filter(pk__in=sorted(normalized_quantities.keys()))
+        .select_related("target_dish")
+        .prefetch_related("combo_items__dish")
+    )
+    if len(promotions) != len(normalized_quantities):
+        raise ValidationError({"promotion_quantities": ["Указана недействительная акция."]})
+    return promotions
+
+
+def _validate_promotion_limits(promotions, promotion_quantities, guests_count):
+    guests_limit = max(1, int(guests_count))
+    single_dish_limit = guests_limit * MAX_SAME_DISHES_PER_GUEST
+    errors = []
+
+    for promotion in promotions:
+        quantity = int((promotion_quantities or {}).get(promotion.pk, 0))
+        if quantity <= 0:
+            continue
+
+        if promotion.kind == Promotion.KIND_COMBO:
+            if quantity > guests_limit:
+                errors.append(
+                    f"Комбо и меню-акции можно выбрать не более {guests_limit} раз для этого заказа."
+                )
+        elif quantity > single_dish_limit:
+            errors.append(
+                (
+                    f'Скидку на обычное блюдо «{promotion.name}» можно применить не более '
+                    f"{single_dish_limit} раз для этого заказа."
+                )
+            )
+
+    if errors:
+        raise ValidationError({"promotion_quantities": errors})
 
 
 def _booking_status(start_time, end_time):
@@ -230,9 +298,9 @@ def create_or_update_reservation_for_client(*, user, data, instance=None):
     exclude_order = order
 
     guests_count = 1 if takeout else int(data["guests_count"])
-    for promotion_id, quantity in promotion_quantities.items():
-        if quantity > guests_count:
-            raise ValidationError({"promotion_quantities": [f"Каждую акцию можно выбрать не более {guests_count} раз."]})
+    _validate_plain_dish_limits(dish_qty_map, guests_count)
+    requested_promotions = _load_requested_promotions(promotion_quantities)
+    _validate_promotion_limits(requested_promotions, promotion_quantities, guests_count)
 
     promotions, per_promo, discount_amount, promotion_error, merged_qty_map = resolve_promotions_for_checkout_input(
         promotion_quantities,
