@@ -3,6 +3,7 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.test import Client, TestCase
 from django.utils import timezone
 
@@ -26,6 +27,8 @@ from bookings.models import (
     WeeklyMenuDaySettings,
     WeeklyMenuItem,
 )
+from bookings.services.availability import get_bookable_dates
+from bookings.services.reservations import create_or_update_reservation_for_client
 
 
 def previous_weekday(start_date):
@@ -95,9 +98,14 @@ class ClientNavigationTests(TestCase):
         self.client_user = User.objects.create_user("clientmenu", password="testpass123")
         UserProfile.objects.create(user=self.client_user, role=UserProfile.ROLE_CLIENT)
         self.dish = Dish.objects.create(name="Лосось в сливочном соусе", price=Decimal("920.00"), available_quantity=10)
+        self.plain_dish = Dish.objects.create(name="Куриный улов", price=Decimal("310.00"), available_quantity=50)
+        self.table = Table.objects.create(table_number="C1", seats=4)
+        ServiceWeekdayWindow.ensure_defaults()
+        ServiceDurationOption.ensure_defaults()
         today = timezone.localdate()
         self.day_settings = WeeklyMenuDaySettings.objects.create(day_of_week=today.weekday(), is_active=True)
         WeeklyMenuItem.objects.create(day_settings=self.day_settings, dish=self.dish, order=1)
+        WeeklyMenuItem.objects.create(day_settings=self.day_settings, dish=self.plain_dish, order=2)
         Promotion.objects.create(
             name="-10% на блюда из рыбы",
             description="Скидка на рыбу",
@@ -126,6 +134,50 @@ class ClientNavigationTests(TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, f'name="dish_quantity_{self.dish.pk}"', html=False)
+
+    def test_home_does_not_render_takeout_helper_note(self):
+        self.client.login(username="clientmenu", password="testpass123")
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Если нужен только takeout")
+
+    def test_cannot_order_more_than_five_same_dishes_per_guest(self):
+        target_date = get_bookable_dates()[1]
+        with self.assertRaisesMessage(ValidationError, "можно заказать не более 5 раз на одного человека"):
+            create_or_update_reservation_for_client(
+                user=self.client_user,
+                data={
+                    "takeout": False,
+                    "date": target_date,
+                    "time": "12:00",
+                    "duration_minutes": 25,
+                    "guests_count": 2,
+                    "promotion_quantities": {},
+                    "dishes": [{"dish": self.plain_dish.pk, "quantity": 11}],
+                },
+            )
+
+
+    def test_single_dish_promotion_is_not_limited_to_one_per_guest(self):
+        target_date = get_bookable_dates()[0]
+        promotion = Promotion.objects.get(target_dish=self.dish)
+        with patch("bookings.services.reservations.get_menu_dishes_for_date", return_value=[self.dish.pk]), patch(
+            "bookings.services.reservations.is_booking_time_allowed", return_value=True
+        ), patch("bookings.services.reservations.find_available_table", return_value=self.table):
+            booking = create_or_update_reservation_for_client(
+                user=self.client_user,
+                data={
+                    "takeout": False,
+                    "date": target_date,
+                    "time": "12:00",
+                    "duration_minutes": 25,
+                    "guests_count": 2,
+                    "promotion_quantities": {promotion.pk: 3},
+                    "dishes": [],
+                },
+            )
+        booking.refresh_from_db()
+        self.assertEqual(booking.order.applied_promotions.first().quantity_applied, 3)
 
 
 class ClientOrderAndReviewTests(TestCase):
