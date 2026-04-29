@@ -3,16 +3,8 @@
 {% block title %}Новости{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Новости</div>
-    <h1 class="page-title">Новости</h1>
-    <p class="page-subtitle">Управляйте публикациями, статусом новостей и датой размещения без выхода из операторского кабинета.</p>
-    <div class="panel-actions" style="margin-top: 1rem;">
-        <a href="{% url 'operator_news_create' %}" class="btn btn-success">Добавить новость</a>
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Новости</div>
     {% if news_list %}
     <div class="table-shell">
         <table>

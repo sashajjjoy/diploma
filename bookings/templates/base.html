@@ -23,7 +23,6 @@
                             Клиент
                         {% endif %}
                     </span>
-                    <span>Пользователь: {{ user.username }}</span>
                 </div>
                 {% endif %}
             </div>
@@ -54,10 +53,9 @@
                         <a href="/admin/" class="nav-link">Панель Django</a>
                     {% else %}
                         <a href="{% url 'home' %}" class="nav-link {% if request.path == '/' %}is-active{% endif %}">Главная</a>
-                        <a href="{% url 'client_today_menu' %}" class="nav-link {% if '/dashboard/client/menu/today' in request.path %}is-active{% endif %}">Меню на сегодня</a>
-                        <a href="{% url 'client_order_list' %}" class="nav-link {% if '/dashboard/client/orders' in request.path %}is-active{% endif %}">История заказов</a>
-                        <a href="{% url 'client_news_list' %}" class="nav-link {% if '/dashboard/client/news' in request.path %}is-active{% endif %}">Новости</a>
                         <a href="{% url 'client_promotion_list' %}" class="nav-link {% if '/dashboard/client/promotions' in request.path %}is-active{% endif %}">Акции</a>
+                        <a href="{% url 'client_today_menu' %}" class="nav-link {% if '/dashboard/client/menu/today' in request.path %}is-active{% endif %}">Меню</a>
+                        <a href="{% url 'client_news_list' %}" class="nav-link {% if '/dashboard/client/news' in request.path %}is-active{% endif %}">Новости</a>
                         <a href="{% url 'client_complaint_create' %}" class="nav-link {% if '/dashboard/client/complaints' in request.path %}is-active{% endif %}">Жалоба</a>
                     {% endif %}
                     <a href="{% url 'logout' %}" class="nav-link">Выйти</a>

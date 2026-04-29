@@ -3,13 +3,8 @@
 {% block title %}{% if action == 'edit' %}Редактирование столика{% else %}Создание столика{% endif %}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Форма столика</div>
-    <h1 class="page-title">{% if action == 'edit' %}Редактирование столика{% else %}Создание нового столика{% endif %}</h1>
-    <p class="page-subtitle">Укажи номер столика и количество мест. Остальной рабочий сценарий для оператора остаётся без изменений.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Форма столика</div>
     <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-group">

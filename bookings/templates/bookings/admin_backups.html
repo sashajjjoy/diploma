@@ -3,36 +3,33 @@
 {% block title %}Резервные копии{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
+<section class="card">
     <div class="page-kicker">Резервные копии</div>
-    <h1 class="page-title">Резервные копии</h1>
-    <p class="page-subtitle">Создание, загрузка, скачивание и восстановление архивов данных в одном системном экране без изменений в бизнес-логике.</p>
-</section>
+    <div class="sections-grid">
+        <div>
+            <h3>Создать резервную копию</h3>
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_backup">
+                <div class="panel-actions">
+                    <button type="submit" class="btn">Создать резервную копию</button>
+                </div>
+            </form>
+        </div>
 
-<section class="sections-grid">
-    <div class="card">
-        <h3>Создать резервную копию</h3>
-        <form method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="create_backup">
-            <div class="panel-actions">
-                <button type="submit" class="btn">Создать резервную копию</button>
-            </div>
-        </form>
-    </div>
-
-    <div class="card">
-        <h3>Загрузить архив</h3>
-        <form method="post" enctype="multipart/form-data" class="stack-md">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="upload_backup">
-            <div class="form-group">
-                <input class="form-control" type="file" name="backup_file" required>
-            </div>
-            <div class="panel-actions">
-                <button type="submit" class="btn btn-secondary">Загрузить</button>
-            </div>
-        </form>
+        <div>
+            <h3>Загрузить архив</h3>
+            <form method="post" enctype="multipart/form-data" class="stack-md">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="upload_backup">
+                <div class="form-group">
+                    <input class="form-control" type="file" name="backup_file" required>
+                </div>
+                <div class="panel-actions">
+                    <button type="submit" class="btn btn-secondary">Загрузить</button>
+                </div>
+            </form>
+        </div>
     </div>
 </section>
 

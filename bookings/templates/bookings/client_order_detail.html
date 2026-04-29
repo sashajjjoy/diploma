@@ -3,66 +3,6 @@
 {% block title %}Заказ №{{ reservation.public_id|default:reservation.pk }}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Детали заказа</div>
-    <h1 class="page-title">Заказ №{{ reservation.public_id|default:reservation.pk }}</h1>
-    <p class="page-subtitle">
-        {% if reservation.table %}Столик №{{ reservation.table.table_number }}{% else %}Заказ на вынос{% endif %}<br>
-        {{ reservation.start_time|date:"d.m.Y H:i" }} — {{ reservation.end_time|date:"d.m.Y H:i" }}
-    </p>
-    <div class="summary-list">
-        <div class="summary-row">
-            <div class="summary-key">Сумма позиций</div>
-            <div class="summary-value">{{ reservation.order_subtotal|floatformat:2 }} ₽</div>
-        </div>
-        {% if reservation.promotion_discount_total %}
-        <div class="summary-row">
-            <div class="summary-key">Скидка по акциям</div>
-            <div class="summary-value">−{{ reservation.promotion_discount_total|floatformat:2 }} ₽</div>
-        </div>
-        {% endif %}
-        <div class="summary-row">
-            <div class="summary-key">Итого к оплате</div>
-            <div class="summary-value">{{ reservation.order_total|floatformat:2 }} ₽</div>
-        </div>
-    </div>
-
-    {% if reservation.applied_promotion_links.all %}
-    <div class="card card-soft" style="margin-top: 1.2rem;">
-        <h3>Применённые акции</h3>
-        <div class="stack-sm">
-            {% for row in reservation.applied_promotion_links.all %}
-            <div class="summary-row">
-                <div class="summary-key">
-                    {{ row.promotion_name_snapshot }}
-                    {% if row.quantity_applied > 1 %}× {{ row.quantity_applied }}{% endif %}
-                </div>
-                <div class="summary-value">
-                    <span class="price-old">{{ row.original_amount|floatformat:2 }} ₽</span>
-                    <span class="price-new">{{ row.discounted_amount|floatformat:2 }} ₽</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    <p class="note" style="margin-top: 1rem;">
-        {% if completed %}
-            <span class="status-badge status-completed">Завершён</span> Можно оставить отзыв по блюдам из этого заказа.
-        {% else %}
-            Заказ ещё не завершён по времени.
-        {% endif %}
-    </p>
-
-    <div class="panel-actions">
-        <a href="{% url 'client_order_list' %}" class="btn btn-secondary">К списку заказов</a>
-        {% if reservation.booking %}
-            <a href="{% url 'reservation_detail' reservation.booking.public_id|default:reservation.booking.pk %}" class="btn">Карточка бронирования</a>
-        {% endif %}
-    </div>
-</section>
-
 <section class="card">
     <div class="section-head">
         <div>

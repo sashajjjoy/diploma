@@ -3,13 +3,8 @@
 {% block title %}Отзыв: {{ line.dish.name }}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Новый отзыв</div>
-    <h1 class="page-title">Отзыв о блюде: {{ line.dish.name }}</h1>
-    <p class="page-subtitle">Заказ №{{ reservation.public_id|default:reservation.pk }}</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Новый отзыв</div>
     <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-group">

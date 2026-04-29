@@ -3,16 +3,8 @@
 {% block title %}Акции и комбо{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Акции</div>
-    <h1 class="page-title">Акции и комбо</h1>
-    <p class="page-subtitle">Настраивайте спецпредложения, меняйте периоды действия и быстро переходите к редактированию.</p>
-    <div class="panel-actions" style="margin-top: 1rem;">
-        <a href="{% url 'operator_promotion_create' %}" class="btn btn-success">Новая акция</a>
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Акции</div>
     {% if promotions %}
     <div class="table-shell">
         <table>

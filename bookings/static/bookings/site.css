@@ -177,9 +177,9 @@ textarea {
 
 .navbar-user {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
-    gap: 0.3rem;
+    gap: 0.55rem;
     color: rgba(255, 255, 255, 0.9);
     flex: 0 0 auto;
 }
@@ -1305,8 +1305,8 @@ tbody tr:last-child td {
     }
 
     .nav-identity {
-        flex-direction: column;
-        align-items: flex-start;
+        flex-direction: row;
+        align-items: center;
         gap: 0.7rem;
     }
 

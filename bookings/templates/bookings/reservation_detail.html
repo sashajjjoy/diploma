@@ -4,13 +4,8 @@
 {% block title %}Бронирование №{{ reservation.public_id|default:reservation.pk }}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Бронирование</div>
-    <h1 class="page-title">Бронирование №{{ reservation.public_id|default:reservation.pk }}</h1>
-    <p class="page-subtitle">Все детали по вашему столику, времени посещения и предзаказу блюд в одном месте.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Бронирование</div>
     <div class="info-grid">
         <div class="info-item">
             <span class="info-label">Формат</span>

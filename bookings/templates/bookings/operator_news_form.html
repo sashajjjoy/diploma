@@ -3,13 +3,8 @@
 {% block title %}{% if action == 'create' %}Новая новость{% else %}Редактирование новости{% endif %}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Редактор новости</div>
-    <h1 class="page-title">{% if action == 'create' %}Новая новость{% else %}Редактирование новости{% endif %}</h1>
-    <p class="page-subtitle">Соберите публикацию в чистом редакторе и сразу задайте дату выхода и статус.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Редактор новости</div>
     <form method="post">
         {% csrf_token %}
         <div class="form-grid form-grid-2">

@@ -3,17 +3,9 @@
 {% block title %}Управление блюдами{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Блюда</div>
-    <h1 class="page-title">Управление блюдами</h1>
-    <p class="page-subtitle">Список всех блюд с быстрым доступом к просмотру, редактированию и удалению. Карточки и таблицы обновлены, но весь функционал остался прежним.</p>
-    <div class="panel-actions">
-        <a href="{% url 'operator_dish_create' %}" class="btn btn-success">Добавить блюдо</a>
-    </div>
-</section>
-
 {% if dishes %}
 <section class="card">
+    <div class="page-kicker">Блюда</div>
     <div class="table-shell">
         <table>
             <thead>

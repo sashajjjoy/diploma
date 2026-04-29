@@ -89,7 +89,7 @@ def _target_date_from_key(date_key):
     try:
         return parse_booking_date(date_key)
     except ValueError:
-        raise ValidationError({"date": ["Р’С‹Р±РµСЂРёС‚Рµ РґР°С‚Сѓ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёСЏ."]})
+        raise ValidationError({"date": ["Выберите дату бронирования."]})
 
 
 def _reservation_payload_from_post(request, *, is_takeout):
@@ -129,14 +129,16 @@ def _client_form_context(*, now, reservations=None):
 
     import json
 
-    dishes_by_date = {date_key: list(get_menu_dishes_for_date(date_obj)) for date_key, _, date_obj in available_dates}
     today_menu_ids = list(get_menu_dishes_for_date(now.date()))
+    today_menu_dishes = _ordered_dishes_for_ids(today_menu_ids)
+    # On the client main page show only dishes available today.
+    dishes_by_date = {date_key: today_menu_ids for date_key, _, _ in available_dates}
     return {        "reservations": reservations or [],
         "available_dates": available_dates,
         "time_slots": time_slots,
         "duration_options": duration_options,
-        "all_dishes": all_dishes,
-        "today_menu_dishes": _ordered_dishes_for_ids(today_menu_ids),
+        "all_dishes": today_menu_dishes,
+        "today_menu_dishes": today_menu_dishes,
         "today_menu_date": now.date(),
         "dishes_by_date": json.dumps(dishes_by_date),
         **client_home_promotion_context(),
@@ -182,9 +184,9 @@ def _operator_dashboard_context():
 def _validate_managed_user_update(*, acting_user, managed_user, profile):
     new_username = acting_user.POST.get("username", "").strip()
     if not new_username:
-        raise ValidationError("Р›РѕРіРёРЅ РЅРµ РјРѕР¶РµС‚ Р±С‹С‚СЊ РїСѓСЃС‚С‹Рј.")
+        raise ValidationError("Логин не может быть пустым.")
     if User.objects.exclude(pk=managed_user.pk).filter(username=new_username).exists():
-        raise ValidationError("РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЃ С‚Р°РєРёРј Р»РѕРіРёРЅРѕРј СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚.")
+        raise ValidationError("Пользователь с таким логином уже существует.")
 
     email = acting_user.POST.get("email", "").strip()
     if email:
@@ -193,17 +195,17 @@ def _validate_managed_user_update(*, acting_user, managed_user, profile):
     allowed_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
     new_role = acting_user.POST.get("role", profile.role)
     if new_role not in allowed_roles:
-        raise ValidationError("Р’С‹Р±СЂР°РЅР° РЅРµРґРѕРїСѓСЃС‚РёРјР°СЏ СЂРѕР»СЊ.")
+        raise ValidationError("Выбрана недопустимая роль.")
 
     new_is_active = acting_user.POST.get("is_active") == "on"
     currently_admin = managed_user.is_superuser or profile.role == UserProfile.ROLE_ADMIN
     future_admin = managed_user.is_superuser or new_role == UserProfile.ROLE_ADMIN
     other_active_admins = _active_admin_users().exclude(pk=managed_user.pk).count()
     if currently_admin and other_active_admins == 0 and (not new_is_active or not future_admin):
-        raise ValidationError("РќРµР»СЊР·СЏ РѕС‚РєР»СЋС‡РёС‚СЊ РёР»Рё СЂР°Р·Р¶Р°Р»РѕРІР°С‚СЊ РїРѕСЃР»РµРґРЅРµРіРѕ Р°РєС‚РёРІРЅРѕРіРѕ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°.")
+        raise ValidationError("Нельзя отключить или разжаловать последнего активного администратора.")
 
     if managed_user.pk == acting_user.user.pk and not future_admin:
-        raise ValidationError("РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ РЅРµ РјРѕР¶РµС‚ СЃРЅСЏС‚СЊ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РёРІРЅСѓСЋ СЂРѕР»СЊ Сѓ СЃР°РјРѕРіРѕ СЃРµР±СЏ.")
+        raise ValidationError("Администратор не может снять административную роль у самого себя.")
 
     return {
         "username": new_username,
@@ -227,9 +229,9 @@ def reservation_create(request):
             payload = _reservation_payload_from_post(request, is_takeout=is_takeout)
             created = create_or_update_reservation_for_client(user=request.user, data=payload)
             if isinstance(created, CustomerOrder):
-                messages.success(request, "Р—Р°РєР°Р· РЅР° РІС‹РЅРѕСЃ СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅ.")
+                messages.success(request, "Заказ на вынос успешно создан.")
                 return redirect("client_order_detail", pk=get_public_id(created))
-            messages.success(request, "Р‘СЂРѕРЅРёСЂРѕРІР°РЅРёРµ СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅРѕ.")
+            messages.success(request, "Бронирование успешно создано.")
             return redirect("reservation_detail", pk=get_public_id(created))
         except (ValueError, TypeError) as exc:
             messages.error(request, f"РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґР°РЅРЅС‹С…: {exc}")
@@ -254,12 +256,15 @@ def client_today_menu(request):
     today = timezone.localtime(timezone.now()).date()
     today_menu_ids = list(get_menu_dishes_for_date(today))
     today_menu_dishes = _ordered_dishes_for_ids(today_menu_ids)
+    all_dishes = Dish.objects.filter(available_quantity__gt=0).order_by("name")
     return render(
         request,
         "bookings/client_today_menu.html",
         {
             "today_menu_date": today,
             "today_menu_dishes": today_menu_dishes,
+            "all_dishes": all_dishes,
+            "today_menu_ids": today_menu_ids,
         },
     )
 
@@ -289,14 +294,14 @@ def reservation_edit(request, pk):
     if reservation is None:
         raise Http404
     if not reservation.can_modify_or_cancel():
-        messages.error(request, "РќРµРІРѕР·РјРѕР¶РЅРѕ РёР·РјРµРЅРёС‚СЊ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёРµ. Р”Рѕ РЅР°С‡Р°Р»Р° РѕСЃС‚Р°Р»РѕСЃСЊ РјРµРЅСЊС€Рµ РґРѕРїСѓСЃС‚РёРјРѕРіРѕ РІСЂРµРјРµРЅРё.")
+        messages.error(request, "Невозможно изменить бронирование. До начала осталось меньше допустимого времени.")
         return redirect("reservation_detail", pk=get_public_id(reservation))
 
     if request.method == "POST":
         try:
             payload = _reservation_payload_from_post(request, is_takeout=False)
             updated = create_or_update_reservation_for_client(user=request.user, data=payload, instance=reservation)
-            messages.success(request, "Р‘СЂРѕРЅРёСЂРѕРІР°РЅРёРµ СѓСЃРїРµС€РЅРѕ РёР·РјРµРЅРµРЅРѕ.")
+            messages.success(request, "Бронирование успешно изменено.")
             return redirect("reservation_detail", pk=get_public_id(updated))
         except (ValueError, TypeError) as exc:
             messages.error(request, f"РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґР°РЅРЅС‹С…: {exc}")
@@ -351,11 +356,11 @@ def reservation_delete(request, pk):
     if reservation is None:
         raise Http404
     if not reservation.can_modify_or_cancel():
-        messages.error(request, "РќРµРІРѕР·РјРѕР¶РЅРѕ РѕС‚РјРµРЅРёС‚СЊ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёРµ. Р”Рѕ РЅР°С‡Р°Р»Р° РѕСЃС‚Р°Р»РѕСЃСЊ РјРµРЅСЊС€Рµ РґРѕРїСѓСЃС‚РёРјРѕРіРѕ РІСЂРµРјРµРЅРё.")
+        messages.error(request, "Невозможно отменить бронирование. До начала осталось меньше допустимого времени.")
         return redirect("reservation_detail", pk=get_public_id(reservation))
     if request.method == "POST":
         cancel_reservation_for_client(reservation)
-        messages.success(request, "Р‘СЂРѕРЅРёСЂРѕРІР°РЅРёРµ СѓСЃРїРµС€РЅРѕ РѕС‚РјРµРЅРµРЅРѕ.")
+        messages.success(request, "Бронирование успешно отменено.")
         return redirect("home")
     return render(request, "bookings/reservation_confirm_delete.html", {"reservation": reservation})
 
@@ -487,7 +492,7 @@ def admin_security(request):
         settings_obj.lockout_enabled = request.POST.get("lockout_enabled") == "on"
         settings_obj.force_password_change_after_admin_reset = request.POST.get("force_password_change_after_admin_reset") == "on"
         settings_obj.save()
-        messages.success(request, "РќР°СЃС‚СЂРѕР№РєРё Р±РµР·РѕРїР°СЃРЅРѕСЃС‚Рё РѕР±РЅРѕРІР»РµРЅС‹.")
+        messages.success(request, "Настройки безопасности обновлены.")
         return redirect("admin_security")
 
     attempts = LoginAttempt.objects.filter(failed_attempts__gt=0).order_by("-last_failed_at", "username")
@@ -530,10 +535,10 @@ def admin_backup_restore(request, pk):
     if request.method == "POST":
         token = request.POST.get("confirm_token")
         if token != request.session.get(token_key):
-            messages.error(request, "РџРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РёСЃС‚РµРєР»Рѕ. РћС‚РєСЂРѕР№С‚Рµ СЃС‚СЂР°РЅРёС†Сѓ РµС‰С‘ СЂР°Р·.")
+            messages.error(request, "Подтверждение восстановления истекло. Откройте страницу ещё раз.")
             return redirect("admin_backups")
         if request.POST.get("confirm_username", "").strip() != request.user.username:
-            messages.error(request, "Р”Р»СЏ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёСЏ РЅСѓР¶РЅРѕ РїРѕРґС‚РІРµСЂРґРёС‚СЊ С‚РµРєСѓС‰РёР№ Р»РѕРіРёРЅ Р°РґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂР°.")
+            messages.error(request, "Для восстановления нужно подтвердить текущий логин администратора.")
             return redirect("admin_backup_restore", pk=pk)
         restore_backup_archive(archive=archive, user=request.user)
         request.session.pop(token_key, None)
@@ -625,7 +630,7 @@ def operator_reservation_delete(request, pk):
         reservation = get_object_or_404(booking_detail_queryset(), pk=pk)
     if request.method == "POST":
         reservation.delete()
-        messages.success(request, "Р‘СЂРѕРЅРёСЂРѕРІР°РЅРёРµ СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅРѕ.")
+        messages.success(request, "Бронирование успешно удалено.")
         return redirect("operator_reservations")
     return render(request, "bookings/operator_reservation_confirm_delete.html", {"reservation": reservation})
 
@@ -661,7 +666,7 @@ def operator_service_slots(request):
             if value > 0 and value not in parsed_values:
                 parsed_values.append(value)
         if not parsed_values:
-            messages.error(request, "РЈРєР°Р¶РёС‚Рµ С…РѕС‚СЏ Р±С‹ РѕРґРЅСѓ Р°РєС‚РёРІРЅСѓСЋ РґР»РёС‚РµР»СЊРЅРѕСЃС‚СЊ Р±СЂРѕРЅРёСЂРѕРІР°РЅРёСЏ.")
+            messages.error(request, "Укажите хотя бы одну активную длительность бронирования.")
             return redirect("operator_service_slots")
         existing_options = {item.duration_minutes: item for item in ServiceDurationOption.objects.all()}
         for duration in parsed_values:
@@ -673,7 +678,7 @@ def operator_service_slots(request):
                 option.sort_order = duration
                 option.save(update_fields=["is_active", "sort_order"])
         ServiceDurationOption.objects.exclude(duration_minutes__in=parsed_values).update(is_active=False)
-        messages.success(request, "РќР°СЃС‚СЂРѕР№РєРё РІСЂРµРјРµРЅРЅС‹С… СЃР»РѕС‚РѕРІ РѕР±РЅРѕРІР»РµРЅС‹.")
+        messages.success(request, "Настройки временных слотов обновлены.")
         return redirect("operator_service_slots")
 
     windows = ServiceWeekdayWindow.objects.order_by("weekday")
@@ -766,10 +771,10 @@ def client_dish_review_create(request, rid, line_id):
         raise Http404
     line = order.items.filter(public_id=line_id).first() or get_object_or_404(order.items.all(), pk=line_id)
     if not is_order_completed_for_review(order):
-        messages.error(request, "РћС‚Р·С‹РІ РјРѕР¶РЅРѕ РѕСЃС‚Р°РІРёС‚СЊ С‚РѕР»СЊРєРѕ РїРѕСЃР»Рµ Р·Р°РІРµСЂС€РµРЅРёСЏ Р·Р°РєР°Р·Р°.")
+        messages.error(request, "Отзыв можно оставить только после завершения заказа.")
         return redirect("client_order_detail", pk=get_public_id(order))
     if OrderItemReview.objects.filter(order_item=line).exists():
-        messages.info(request, "РћС‚Р·С‹РІ РїРѕ СЌС‚РѕР№ РїРѕР·РёС†РёРё СѓР¶Рµ РѕСЃС‚Р°РІР»РµРЅ.")
+        messages.info(request, "Отзыв по этой позиции уже оставлен.")
         return redirect("client_order_detail", pk=get_public_id(order))
     if request.method == "POST":
         try:
@@ -778,11 +783,11 @@ def client_dish_review_create(request, rid, line_id):
             rating = 0
         comment = request.POST.get("comment", "").strip()
         if rating < 1 or rating > 5:
-            messages.error(request, "Р’С‹Р±РµСЂРёС‚Рµ РѕС†РµРЅРєСѓ РѕС‚ 1 РґРѕ 5.")
+            messages.error(request, "Выберите оценку от 1 до 5.")
         else:
             try:
                 create_dish_review(user=request.user, order=order, order_item=line, rating=rating, comment=comment)
-                messages.success(request, "РЎРїР°СЃРёР±Рѕ Р·Р° РѕС‚Р·С‹РІ!")
+                messages.success(request, "Спасибо за отзыв!")
                 return redirect("client_order_detail", pk=get_public_id(order))
             except ValidationError as exc:
                 messages.error(request, str(exc))

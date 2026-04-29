@@ -3,13 +3,8 @@
 {% block title %}Жалоба{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Обратная связь</div>
-    <h1 class="page-title">Жалоба на заведение</h1>
-    <p class="page-subtitle">Опиши проблему подробно: тема, ситуация и любые детали, которые помогут оператору быстрее отреагировать.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Обратная связь</div>
     <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-group">

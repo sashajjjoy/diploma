@@ -3,16 +3,6 @@
 {% block title %}Управление меню{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Недельное меню</div>
-    <h1 class="page-title">Управление меню</h1>
-    <p class="page-subtitle">Планируйте меню по дням недели, смотрите календарь и быстро открывайте переопределения на конкретные даты.</p>
-    <div class="panel-actions" style="margin-top: 1rem;">
-        <a href="{% url 'operator_menus_create_all' %}" class="btn btn-success">Создать меню на рабочие дни</a>
-        <a href="{% url 'operator_menu_override_create' %}" class="btn btn-secondary">Переопределить меню на период</a>
-    </div>
-</section>
-
 <section class="card">
     <div class="section-header">
         <div>

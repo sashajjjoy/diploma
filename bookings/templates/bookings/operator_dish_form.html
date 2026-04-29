@@ -3,13 +3,8 @@
 {% block title %}{% if action == 'edit' %}Редактирование блюда{% else %}Создание блюда{% endif %}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Форма блюда</div>
-    <h1 class="page-title">{% if action == 'edit' %}Редактирование блюда{% else %}Создание нового блюда{% endif %}</h1>
-    <p class="page-subtitle">Изменяй описание, цену, доступный остаток и изображение блюда в единой форме управления.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Форма блюда</div>
     <form method="post" enctype="multipart/form-data" class="stack-md">
         {% csrf_token %}
         <div class="form-group">
