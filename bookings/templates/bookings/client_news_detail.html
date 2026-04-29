@@ -3,17 +3,8 @@
 {% block title %}{{ news_item.title }}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <a href="{% url 'client_news_list' %}" class="page-back-link">← Все новости</a>
-    <div style="margin-top: 1rem;">
-    <div class="page-kicker">Новость</div>
-        <h1 class="page-title">{{ news_item.title }}</h1>
-        <p class="page-subtitle">{{ news_item.published_at|date:"d.m.Y H:i" }}</p>
-        {% if news_item.summary %}<p>{{ news_item.summary }}</p>{% endif %}
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Новость</div>
     <div style="white-space: pre-wrap;">{{ news_item.body }}</div>
 </section>
 {% endblock %}

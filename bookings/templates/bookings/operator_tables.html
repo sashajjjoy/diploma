@@ -3,17 +3,9 @@
 {% block title %}Управление столиками{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Столики</div>
-    <h1 class="page-title">Управление столиками</h1>
-    <p class="page-subtitle">Список столиков, их вместимость и быстрые действия оператора. Весь CRUD сохранён без изменений.</p>
-    <div class="panel-actions">
-        <a href="{% url 'operator_table_create' %}" class="btn btn-success">Добавить столик</a>
-    </div>
-</section>
-
 {% if tables %}
 <section class="card">
+    <div class="page-kicker">Столики</div>
     <div class="table-shell">
         <table>
             <thead>

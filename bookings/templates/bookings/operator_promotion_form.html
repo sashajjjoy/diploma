@@ -3,13 +3,8 @@
 {% block title %}{% if action == 'create' %}Новая акция{% else %}Редактирование акции{% endif %}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Редактор акции</div>
-    <h1 class="page-title">{% if action == 'create' %}Новая акция{% else %}Редактирование акции{% endif %}</h1>
-    <p class="page-subtitle">Создавайте акции на отдельные блюда или комбо-предложения в едином визуальном редакторе.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Редактор акции</div>
     <form method="post">
         {% csrf_token %}
         <div class="form-grid form-grid-2">

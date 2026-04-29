@@ -3,13 +3,8 @@
 {% block title %}Безопасность{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Безопасность</div>
-    <h1 class="page-title">Настройки безопасности</h1>
-    <p class="page-subtitle">Таймаут сессии, блокировка после неудачных входов и просмотр истории попыток входа собраны в одном строгом административном экране.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Безопасность</div>
     <form method="post" class="stack-md">
         {% csrf_token %}
         <div class="form-grid form-grid-3">

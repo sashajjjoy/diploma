@@ -3,16 +3,8 @@
 {% block title %}История заказов{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">История заказов</div>
-    <h1 class="page-title">История заказов</h1>
-    <p class="page-subtitle">Здесь собраны завершённые и активные заказы: dine-in, бронирования с предзаказом и заказы на вынос.</p>
-    <div class="panel-actions">
-        <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">История заказов</div>
     {% if orders %}
     <div class="table-shell">
         <table>

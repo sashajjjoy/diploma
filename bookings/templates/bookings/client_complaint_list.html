@@ -3,16 +3,8 @@
 {% block title %}Мои жалобы{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Жалобы</div>
-    <h1 class="page-title">Мои жалобы</h1>
-    <p class="page-subtitle">Здесь хранится история всех обращений по сервису, качеству блюд и другим вопросам.</p>
-    <div class="panel-actions">
-        <a href="{% url 'client_complaint_create' %}" class="btn btn-success">Новая жалоба</a>
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Жалобы</div>
     {% if complaints %}
     <div class="table-shell">
         <table>

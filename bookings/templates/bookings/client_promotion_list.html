@@ -3,17 +3,9 @@
 {% block title %}Акции{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Акции</div>
-    <h1 class="page-title">Действующие акции</h1>
-    <p class="page-subtitle">Акции и комбо применяются при оформлении бронирования или заказа на вынос. Ниже показаны только предложения, по которым сейчас хватает доступных блюд.</p>
-    <div class="panel-actions">
-        <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
-    </div>
-</section>
-
 {% for p in promotions %}
 <section class="card">
+    <div class="page-kicker">Акции</div>
     <h3>{{ p.name }}</h3>
     <p class="page-subtitle">
         {% if p.discount_type == 'percent' %}

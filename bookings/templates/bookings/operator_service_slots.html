@@ -3,13 +3,8 @@
 {% block title %}Настройки временных слотов{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Временные слоты</div>
-    <h1 class="page-title">Настройки временных слотов</h1>
-    <p class="page-subtitle">Управляйте шагом слотов, горизонтом бронирования, минимальным временем до записи и окнами обслуживания по дням недели.</p>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Временные слоты</div>
     <form method="post">
         {% csrf_token %}
         <div class="form-grid form-grid-3">

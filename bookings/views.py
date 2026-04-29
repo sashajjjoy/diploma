@@ -459,17 +459,17 @@ def operator_menus(request):
 @login_required
 @user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menu_view_date(request):
-    """РџСЂРѕСЃРјРѕС‚СЂ РјРµРЅСЋ РЅР° РІС‹Р±СЂР°РЅРЅСѓСЋ РґР°С‚Сѓ"""
+    """Просмотр меню на выбранную дату."""
     date_str = request.GET.get('date')
     
     if not date_str:
-        messages.error(request, 'РќРµ СѓРєР°Р·Р°РЅР° РґР°С‚Р°')
+        messages.error(request, 'Не указана дата.')
         return redirect('operator_menus')
     
     try:
         from datetime import datetime
         selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
-        day_of_week = selected_date.weekday()  # 0=РїРѕРЅРµРґРµР»СЊРЅРёРє, 6=РІРѕСЃРєСЂРµСЃРµРЅСЊРµ
+        day_of_week = selected_date.weekday()  # 0=понедельник, 6=воскресенье
         
         weekly_menu = None
         weekly_dishes = []
@@ -489,7 +489,7 @@ def operator_menu_view_date(request):
             Q(date_to__isnull=True) | Q(date_to__gte=selected_date)
         ).order_by('-date_from')
         
-        final_dishes = list(weekly_dishes)  # РќР°С‡РёРЅР°РµРј СЃ РµР¶РµРЅРµРґРµР»СЊРЅРѕРіРѕ РјРµРЅСЋ
+        final_dishes = list(weekly_dishes)  # Начинаем с еженедельного меню
         dish_set = set(d.id for d in final_dishes)
         
         for override in active_overrides:
@@ -505,7 +505,7 @@ def operator_menu_view_date(request):
         
         context = {
             'selected_date': selected_date,
-            'day_of_week_name': ['РџРѕРЅРµРґРµР»СЊРЅРёРє', 'Р’С‚РѕСЂРЅРёРє', 'РЎСЂРµРґР°', 'Р§РµС‚РІРµСЂРі', 'РџСЏС‚РЅРёС†Р°', 'РЎСѓР±Р±РѕС‚Р°', 'Р’РѕСЃРєСЂРµСЃРµРЅСЊРµ'][day_of_week],
+            'day_of_week_name': ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'][day_of_week],
             'weekly_menu': weekly_menu,
             'weekly_dishes': weekly_dishes,
             'active_overrides': active_overrides,
@@ -514,22 +514,22 @@ def operator_menu_view_date(request):
         return render(request, 'bookings/operator_menu_view_date.html', context)
         
     except ValueError:
-        messages.error(request, 'РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ РґР°С‚С‹')
+        messages.error(request, 'Неверный формат даты.')
         return redirect('operator_menus')
     except Exception as e:
-        messages.error(request, f'РћС€РёР±РєР° РїСЂРё РїРѕР»СѓС‡РµРЅРёРё РјРµРЅСЋ: {str(e)}')
+        messages.error(request, f'Ошибка при получении меню: {str(e)}')
         return redirect('operator_menus')
 
 
 @login_required
 @user_passes_test(is_operator_or_admin, login_url='/')
 def operator_menus_create_all(request):
-    """РЎРѕР·РґР°РЅРёРµ РјРµРЅСЋ РЅР° СЂР°Р±РѕС‡РёРµ РґРЅРё РЅРµРґРµР»Рё (РїРѕРЅРµРґРµР»СЊРЅРёРє-РїСЏС‚РЅРёС†Р°)"""
+    """Создание меню на рабочие дни недели (понедельник-пятница)."""
     all_dishes = Dish.objects.all().order_by('name')
     
     working_days_data = []
-    working_days = [0, 1, 2, 3, 4]  # РџРѕРЅРµРґРµР»СЊРЅРёРє, Р’С‚РѕСЂРЅРёРє, РЎСЂРµРґР°, Р§РµС‚РІРµСЂРі, РџСЏС‚РЅРёС†Р°
-    day_names_list = ['РџРѕРЅРµРґРµР»СЊРЅРёРє', 'Р’С‚РѕСЂРЅРёРє', 'РЎСЂРµРґР°', 'Р§РµС‚РІРµСЂРі', 'РџСЏС‚РЅРёС†Р°']
+    working_days = [0, 1, 2, 3, 4]  # Понедельник, Вторник, Среда, Четверг, Пятница
+    day_names_list = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница']
     
     for idx, day in enumerate(working_days):
         menu, created = WeeklyMenuDaySettings.objects.get_or_create(day_of_week=day)

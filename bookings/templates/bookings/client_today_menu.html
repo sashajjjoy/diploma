@@ -1,27 +1,34 @@
 {% extends "base.html" %}
 
-{% block title %}Меню на сегодня{% endblock %}
+{% block title %}Меню{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Меню на сегодня</div>
-    <h1 class="page-title">Меню на сегодня</h1>
-    <p class="page-subtitle">На {{ today_menu_date|date:"d.m.Y" }}. У каждой позиции можно открыть отзывы и быстро оценить, что доступно сегодня в корпоративной столовой.</p>
-</section>
-
 <section class="card">
-    {% if today_menu_dishes %}
-    <div class="menu-grid">
-        {% for dish in today_menu_dishes %}
-        <article class="menu-card">
+    <div class="page-kicker">Меню</div>
+    {% if all_dishes %}
+    <div class="dishes-grid regular-dishes-grid">
+        {% for dish in all_dishes %}
+        <article class="dish-card regular-dish-card {% if dish.pk not in today_menu_ids %}unavailable{% endif %}" data-dish-id="{{ dish.pk }}">
             {% if dish.image %}
                 <img src="{{ dish.image.url }}" alt="{{ dish.name }}">
             {% else %}
                 <div class="media-placeholder">Нет изображения</div>
             {% endif %}
-            <h3>{{ dish.name }}</h3>
-            <div class="menu-price">{{ dish.price|floatformat:2 }} ₽</div>
+            <h4>{{ dish.name }}</h4>
+            <div class="dish-price">{{ dish.price|floatformat:2 }} ₽</div>
             <p class="dish-description">{{ dish.description|default:"Без описания"|truncatewords:18 }}</p>
+            <div class="dish-quantity">
+                <label for="today_dish_quantity_{{ dish.pk }}">Количество</label>
+                <input
+                    type="number"
+                    class="form-control"
+                    id="today_dish_quantity_{{ dish.pk }}"
+                    value="0"
+                    min="0"
+                    max="{{ dish.available_quantity }}"
+                    {% if dish.pk not in today_menu_ids %}disabled{% endif %}
+                >
+            </div>
             <div class="panel-actions" style="margin-top: auto;">
                 <a href="{% url 'client_dish_review_list' dish.pk %}?next={{ request.path }}" class="btn btn-secondary">Отзывы</a>
             </div>
@@ -29,7 +36,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="empty-state">На сегодня блюда в меню пока не назначены.</div>
+    <div class="empty-state">В меню пока нет доступных блюд.</div>
     {% endif %}
 </section>
 {% endblock %}

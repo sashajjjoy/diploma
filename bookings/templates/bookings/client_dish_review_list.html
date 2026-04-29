@@ -3,38 +3,8 @@
 {% block title %}Отзывы: {{ dish.name }}{% endblock %}
 
 {% block content %}
-<section class="card hero-card">
-    <div class="page-kicker">Отзывы</div>
-    <h1 class="page-title">Отзывы о блюде: {{ dish.name }}</h1>
-    <p class="page-subtitle">
-        {% if avg_rating %}
-            Средняя оценка: <strong>{{ avg_rating|floatformat:1 }}</strong> / 5
-        {% else %}
-            У этого блюда пока нет оценок.
-        {% endif %}
-        Всего отзывов: {{ reviews_count }}.
-    </p>
-
-    {% if eligible_reviews %}
-    <div class="panel-actions">
-        {% for option in eligible_reviews %}
-        <a href="{% url 'client_dish_review_create' option.order.public_id|default:option.order.pk option.line.public_id|default:option.line.pk %}" class="btn btn-success">
-            Оставить отзыв к заказу №{{ option.order.public_id|default:option.order.pk }}
-        </a>
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    <div class="panel-actions">
-        {% if request.GET.next %}
-            <a href="{{ request.GET.next }}" class="btn btn-secondary">Назад</a>
-        {% else %}
-            <a href="{% url 'home' %}" class="btn btn-secondary">На главную</a>
-        {% endif %}
-    </div>
-</section>
-
 <section class="card">
+    <div class="page-kicker">Отзывы</div>
     {% if reviews %}
     <div class="table-shell">
         <table>
