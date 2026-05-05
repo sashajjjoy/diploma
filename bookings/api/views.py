@@ -55,7 +55,7 @@ class RefreshView(TokenRefreshView):
 
 
 class LogoutView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def post(self, request):
         serializer = LogoutSerializer(data=request.data)
@@ -65,7 +65,7 @@ class LogoutView(APIView):
 
 
 class MeView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get(self, request):
         return Response(CurrentUserSerializer(request.user).data)
@@ -73,7 +73,7 @@ class MeView(APIView):
 
 class PublishedNewsListView(generics.ListAPIView):
     serializer_class = NewsListSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
         now = timezone.now()
@@ -82,7 +82,7 @@ class PublishedNewsListView(generics.ListAPIView):
 
 class PublishedNewsDetailView(generics.RetrieveAPIView):
     serializer_class = NewsDetailSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
         now = timezone.now()
@@ -91,7 +91,7 @@ class PublishedNewsDetailView(generics.RetrieveAPIView):
 
 class PromotionListView(generics.ListAPIView):
     serializer_class = PromotionListSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
         return get_orderable_promotions()
@@ -99,7 +99,7 @@ class PromotionListView(generics.ListAPIView):
 
 class PromotionDetailView(generics.RetrieveAPIView):
     serializer_class = PromotionDetailSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_object(self):
         promotions = {promotion.pk: promotion for promotion in get_orderable_promotions()}
@@ -110,7 +110,7 @@ class PromotionDetailView(generics.RetrieveAPIView):
 
 
 class MenuView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get(self, request):
         date_raw = request.query_params.get("date")
@@ -135,7 +135,7 @@ class MenuView(APIView):
 
 class DishListView(generics.ListAPIView):
     serializer_class = DishSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get_queryset(self):
         queryset = Dish.objects.filter(available_quantity__gt=0).order_by("name")
@@ -152,7 +152,7 @@ class DishListView(generics.ListAPIView):
 
 
 class OccupiedSlotsView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get(self, request):
         table_id = request.query_params.get("table_id")
@@ -181,7 +181,7 @@ class OccupiedSlotsView(APIView):
 
 
 class AvailableSlotsView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated, IsClientUser]
 
     def get(self, request):
         date_raw = request.query_params.get("date")
