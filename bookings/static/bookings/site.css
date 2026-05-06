@@ -1195,6 +1195,27 @@ tbody tr:last-child td {
     background: rgba(255, 255, 255, 0.94);
 }
 
+.operator-menu-calendar {
+    max-width: 460px;
+}
+
+.operator-menu-calendar .calendar-header,
+.operator-menu-calendar .calendar {
+    gap: 0.3rem;
+}
+
+.operator-menu-calendar .calendar-header-cell {
+    padding: 0.35rem;
+    border-radius: 10px;
+    font-size: 0.74rem;
+}
+
+.operator-menu-calendar .calendar-day {
+    border-radius: 10px;
+    font-size: 0.74rem;
+    min-height: 38px;
+}
+
 @keyframes cardEnter {
     from {
         opacity: 0;

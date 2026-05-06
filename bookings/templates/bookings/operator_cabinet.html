@@ -9,9 +9,7 @@
     <div class="operator-kpi"><div class="value">{{ reservations_completed_period }}</div><div class="stats-label">Завершено за период</div></div>
     <div class="operator-kpi"><div class="value">{{ reservations_cancelled_period }}</div><div class="stats-label">Отменено за период</div></div>
     <div class="operator-kpi"><div class="value">{{ complaints_new }}</div><div class="stats-label">Новые жалобы</div></div>
-    <div class="operator-kpi"><div class="value">{{ complaints_seen }}</div><div class="stats-label">Просмотрено жалоб</div></div>
     <div class="operator-kpi"><div class="value">{{ complaints_closed }}</div><div class="stats-label">Закрыто жалоб</div></div>
-    <div class="operator-kpi"><div class="value">{{ reviews_total }}</div><div class="stats-label">Всего отзывов</div></div>
     <div class="operator-kpi"><div class="value">{% if reviews_avg %}{{ reviews_avg|floatformat:1 }}{% else %}—{% endif %}</div><div class="stats-label">Средняя оценка</div></div>
     <div class="operator-kpi"><div class="value">{{ reviews_new_period }}</div><div class="stats-label">Новые отзывы за период</div></div>
     <div class="operator-kpi"><div class="value">{{ sales_total_revenue|floatformat:0 }}</div><div class="stats-label">Выручка за период, ₽</div></div>
@@ -23,6 +21,9 @@
         <div class="section-head">
             <div>
                 <h3>Последние жалобы клиентов</h3>
+            </div>
+            <div class="panel-actions">
+                <a href="{% url 'operator_complaint_list' %}" class="btn btn-secondary">Подробнее</a>
             </div>
         </div>
         {% if recent_complaints %}
@@ -40,7 +41,7 @@
                     {% for complaint in recent_complaints %}
                     <tr>
                         <td>{{ complaint.created_at|date:"d.m.Y H:i" }}</td>
-                        <td>{{ complaint.user.username }}</td>
+                        <td>{{ complaint.user.get_full_name|default:complaint.user.username }}</td>
                         <td>{{ complaint.subject|truncatechars:48 }}</td>
                         <td><span class="pill">{{ complaint.get_status_display }}</span></td>
                     </tr>
@@ -57,6 +58,9 @@
         <div class="section-head">
             <div>
                 <h3>Последние отзывы о блюдах</h3>
+            </div>
+            <div class="panel-actions">
+                <a href="{% url 'operator_dish_review_list' %}" class="btn btn-secondary">Подробнее</a>
             </div>
         </div>
         {% if recent_reviews %}
@@ -76,7 +80,7 @@
                         <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
                         <td>{{ review.order_item.dish_name_snapshot }}</td>
                         <td><span class="pill">{{ review.rating }}/5</span></td>
-                        <td>{{ review.order_item.order.user.username }}</td>
+                        <td>{{ review.order_item.order.user.get_full_name|default:review.order_item.order.user.username }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -90,7 +94,14 @@
 
 <section class="sections-grid" style="margin-top: 1.5rem;">
     <div class="card">
-        <h3>Топ блюд за период</h3>
+        <div class="section-head">
+            <div>
+                <h3>Топ блюд за период</h3>
+            </div>
+            <div class="panel-actions">
+                <a href="{% url 'operator_dishes' %}" class="btn btn-secondary">Все блюда</a>
+            </div>
+        </div>
         {% if top_dishes %}
         <div class="table-shell">
             <table>
@@ -118,7 +129,11 @@
     </div>
 
     <div class="card">
-        <h3>Анти-топ блюд за период</h3>
+        <div class="section-head">
+            <div>
+                <h3>Анти-топ блюд за период</h3>
+            </div>
+        </div>
         {% if low_dishes %}
         <div class="table-shell">
             <table>
@@ -171,7 +186,14 @@
 {% endif %}
 
 <section class="card">
-    <h3>Последние бронирования</h3>
+    <div class="section-head">
+        <div>
+            <h3>Последние бронирования</h3>
+        </div>
+        <div class="panel-actions">
+            <a href="{% url 'operator_reservations' %}" class="btn btn-secondary">Подробнее</a>
+        </div>
+    </div>
     {% if reservations %}
     <div class="table-shell">
         <table>

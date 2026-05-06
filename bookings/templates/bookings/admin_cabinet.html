@@ -30,6 +30,61 @@
 <section class="card">
     <div class="section-head">
         <div>
+            <h3>Создать нового пользователя</h3>
+        </div>
+    </div>
+    <form method="post" class="card card-soft">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create_user">
+        <div class="form-grid form-grid-4">
+            <div class="form-group">
+                <label for="new_username">Логин</label>
+                <input class="form-control" id="new_username" name="username" required>
+            </div>
+            <div class="form-group">
+                <label for="new_first_name">Имя</label>
+                <input class="form-control" id="new_first_name" name="first_name">
+            </div>
+            <div class="form-group">
+                <label for="new_last_name">Фамилия</label>
+                <input class="form-control" id="new_last_name" name="last_name">
+            </div>
+            <div class="form-group">
+                <label for="new_email">Email</label>
+                <input class="form-control" id="new_email" name="email">
+            </div>
+            <div class="form-group">
+                <label for="new_phone">Телефон</label>
+                <input class="form-control" id="new_phone" name="phone">
+            </div>
+            <div class="form-group">
+                <label for="new_role">Роль</label>
+                <select class="form-control" id="new_role" name="role">
+                    {% for role_value, role_label in role_choices %}
+                    <option value="{{ role_value }}" {% if role_value == 'client' %}selected{% endif %}>{{ role_label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="new_password">Пароль</label>
+                <input type="password" class="form-control" id="new_password" name="password" minlength="6" required>
+            </div>
+            <div class="form-group">
+                <label style="display:flex; align-items:center; gap:0.6rem; margin-top: 2rem;">
+                    <input type="checkbox" name="is_active" checked>
+                    <span>Активен</span>
+                </label>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-success">Создать</button>
+            </div>
+        </div>
+    </form>
+</section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
             <h3>Управление аккаунтами</h3>
         </div>
     </div>
@@ -111,30 +166,4 @@
     <div class="empty-state">Бронирований пока нет.</div>
     {% endif %}
 </section>
-
-{% if dishes_low_stock %}
-<section class="card">
-    <h3>Низкие остатки</h3>
-    <div class="table-shell">
-        <table>
-            <thead>
-                <tr>
-                    <th>Блюдо</th>
-                    <th>Остаток</th>
-                    <th>Порог</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for dish in dishes_low_stock %}
-                <tr>
-                    <td>{{ dish.name }}</td>
-                    <td>{{ dish.available_quantity }}</td>
-                    <td>{{ low_stock_threshold }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</section>
-{% endif %}
 {% endblock %}

@@ -448,7 +448,11 @@ class Booking(models.Model):
         self.full_clean()
         super().save(*args, **kwargs)
         if self.public_id is None:
-            self.public_id = self.pk
+            next_public_id = self.pk
+            if Booking.objects.exclude(pk=self.pk).filter(public_id=next_public_id).exists():
+                max_public_id = Booking.objects.aggregate(max_public_id=Max("public_id"))["max_public_id"] or 0
+                next_public_id = max(max_public_id, self.pk or 0) + 1
+            self.public_id = next_public_id
             super().save(update_fields=["public_id"])
 
 

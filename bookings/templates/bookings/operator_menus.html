@@ -4,15 +4,8 @@
 
 {% block content %}
 <section class="card">
-    <div class="section-header">
-        <div>
-            <div class="page-kicker">Календарь</div>
-            <h2>Календарь меню</h2>
-        </div>
-    </div>
-    <p class="page-subtitle">Нажмите на дату, чтобы открыть меню на выбранный день.</p>
-
-    <div class="calendar-shell">
+    <div class="page-kicker">Календарь</div>
+    <div class="calendar-shell operator-menu-calendar">
         <div class="calendar-nav">
             <button type="button" class="btn btn-secondary" onclick="changeMonth(-1)">Предыдущий месяц</button>
             <h3 id="calendar-month-year"></h3>
@@ -34,12 +27,7 @@
 </section>
 
 <section class="card">
-    <div class="section-header">
-        <div>
-            <div class="page-kicker">Шаблоны меню</div>
-            <h2>Еженедельные меню</h2>
-        </div>
-    </div>
+    <div class="page-kicker">Шаблоны меню</div>
     <div class="table-shell">
         <table>
             <thead>
@@ -53,7 +41,17 @@
             <tbody>
                 {% for menu in menus %}
                 <tr>
-                    <td>{{ menu.get_day_of_week_display }}</td>
+                    <td>
+                        {% if menu.day_of_week == 0 %}Понедельник
+                        {% elif menu.day_of_week == 1 %}Вторник
+                        {% elif menu.day_of_week == 2 %}Среда
+                        {% elif menu.day_of_week == 3 %}Четверг
+                        {% elif menu.day_of_week == 4 %}Пятница
+                        {% elif menu.day_of_week == 5 %}Суббота
+                        {% elif menu.day_of_week == 6 %}Воскресенье
+                        {% else %}{{ menu.get_day_of_week_display }}
+                        {% endif %}
+                    </td>
                     <td>{% if menu.is_active %}<span class="status-badge status-success">Активно</span>{% else %}<span class="status-badge">Неактивно</span>{% endif %}</td>
                     <td>{{ menu.items.count }}</td>
                     <td>
@@ -69,12 +67,7 @@
 </section>
 
 <section class="card">
-    <div class="section-header">
-        <div>
-            <div class="page-kicker">Переопределения</div>
-            <h2>Переопределения меню</h2>
-        </div>
-    </div>
+    <div class="page-kicker">Переопределения</div>
     {% if overrides %}
     <div class="table-shell">
         <table>

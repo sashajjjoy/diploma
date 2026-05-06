@@ -3,7 +3,8 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.utils import timezone
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Count, IntegerField, Q
+from django.db.models.functions import Cast
 from django.core.paginator import Paginator
 from datetime import timedelta, datetime
 import pytz
@@ -239,7 +240,7 @@ LOW_STOCK_THRESHOLD = 5
 @user_passes_test(is_operator_or_admin, login_url='/')
 def operator_tables(request):
     """РЎРїРёСЃРѕРє СЃС‚РѕР»РёРєРѕРІ РґР»СЏ РѕРїРµСЂР°С‚РѕСЂР°"""
-    tables = Table.objects.all().order_by('table_number')
+    tables = Table.objects.annotate(table_number_int=Cast('table_number', IntegerField())).order_by('table_number_int', 'table_number')
     
     paginator = Paginator(tables, 10)
     page_number = request.GET.get('page', 1)
@@ -265,10 +266,10 @@ def operator_table_create(request):
                 table_number=table_number,
                 seats=int(seats)
             )
-            messages.success(request, f'РЎС‚РѕР»РёРє в„–{table_number} СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅ!')
+            messages.success(request, f'Столик №{table_number} успешно создан.')
             return redirect('operator_table_detail', pk=table.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё СЃС‚РѕР»РёРєР°: {str(e)}')
+            messages.error(request, f'Ошибка при создании столика: {str(e)}')
     
     return render(request, 'bookings/operator_table_form.html', {'action': 'create'})
 
@@ -299,10 +300,10 @@ def operator_table_edit(request, pk):
         try:
             table.full_clean()
             table.save()
-            messages.success(request, 'РЎС‚РѕР»РёРє СѓСЃРїРµС€РЅРѕ РёР·РјРµРЅРµРЅ!')
+            messages.success(request, 'Столик успешно изменен.')
             return redirect('operator_table_detail', pk=table.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё: {str(e)}')
+            messages.error(request, f'Ошибка при сохранении: {str(e)}')
     
     context = {
         'table': table,
@@ -320,10 +321,10 @@ def operator_table_delete(request, pk):
     if request.method == 'POST':
         try:
             table.delete()
-            messages.success(request, 'РЎС‚РѕР»РёРє СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅ!')
+            messages.success(request, 'Столик успешно удален.')
             return redirect('operator_tables')
         except Exception as e:
-            messages.error(request, f'РќРµРІРѕР·РјРѕР¶РЅРѕ СѓРґР°Р»РёС‚СЊ СЃС‚РѕР»РёРє: {str(e)}')
+            messages.error(request, f'Невозможно удалить столик: {str(e)}')
             return redirect('operator_table_detail', pk=table.pk)
     
     context = {'table': table}
@@ -367,10 +368,10 @@ def operator_dish_create(request):
                 available_quantity=available_quantity,
                 image=image
             )
-            messages.success(request, f'Р‘Р»СЋРґРѕ "{name}" СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅРѕ!')
+            messages.success(request, f'Блюдо "{name}" успешно создано.')
             return redirect('operator_dish_detail', pk=dish.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё Р±Р»СЋРґР°: {str(e)}')
+            messages.error(request, f'Ошибка при создании блюда: {str(e)}')
     
     return render(request, 'bookings/operator_dish_form.html', {'action': 'create'})
 
@@ -385,12 +386,28 @@ def operator_dish_detail(request, pk):
         .select_related('order__booking', 'order__user')
         .order_by('-order__booking__start_time')[:10]
     )
+    reviews = (
+        OrderItemReview.objects.filter(order_item__dish=dish)
+        .select_related("order_item__order__user")
+        .order_by("-created_at")[:20]
+    )
     
     context = {
         'dish': dish,
         'reservations': reservations,
+        'reviews': reviews,
     }
     return render(request, 'bookings/operator_dish_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_operator_or_admin, login_url='/')
+def operator_dish_review_list(request):
+    reviews = (
+        OrderItemReview.objects.select_related("order_item__dish", "order_item__order__user")
+        .order_by("-created_at")
+    )
+    return render(request, "bookings/operator_dish_review_list.html", {"reviews": reviews})
 
 
 @login_required
@@ -411,10 +428,10 @@ def operator_dish_edit(request, pk):
         try:
             dish.full_clean()
             dish.save()
-            messages.success(request, 'Р‘Р»СЋРґРѕ СѓСЃРїРµС€РЅРѕ РёР·РјРµРЅРµРЅРѕ!')
+            messages.success(request, 'Блюдо успешно изменено.')
             return redirect('operator_dish_detail', pk=dish.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё: {str(e)}')
+            messages.error(request, f'Ошибка при сохранении: {str(e)}')
     
     context = {
         'dish': dish,
@@ -432,10 +449,10 @@ def operator_dish_delete(request, pk):
     if request.method == 'POST':
         try:
             dish.delete()
-            messages.success(request, 'Р‘Р»СЋРґРѕ СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅРѕ!')
+            messages.success(request, 'Блюдо успешно удалено.')
             return redirect('operator_dishes')
         except Exception as e:
-            messages.error(request, f'РќРµРІРѕР·РјРѕР¶РЅРѕ СѓРґР°Р»РёС‚СЊ Р±Р»СЋРґРѕ: {str(e)}')
+            messages.error(request, f'Невозможно удалить блюдо: {str(e)}')
             return redirect('operator_dish_detail', pk=dish.pk)
     
     context = {'dish': dish}
@@ -561,7 +578,7 @@ def operator_menus_create_all(request):
                 except (Dish.DoesNotExist, ValueError):
                     continue
         
-        messages.success(request, 'РњРµРЅСЋ РЅР° СЂР°Р±РѕС‡РёРµ РґРЅРё СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅРѕ!')
+        messages.success(request, 'Меню на рабочие дни успешно сохранено.')
         return redirect('operator_menus')
     
     context = {
@@ -597,7 +614,8 @@ def operator_menu_edit(request, day_of_week):
             except (Dish.DoesNotExist, ValueError):
                 continue
         
-        messages.success(request, f'РњРµРЅСЋ РЅР° {menu.get_day_of_week_display()} СѓСЃРїРµС€РЅРѕ РѕР±РЅРѕРІР»РµРЅРѕ!')
+        day_name_ru = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'][menu.day_of_week]
+        messages.success(request, f'Меню на {day_name_ru} успешно обновлено.')
         return redirect('operator_menus')
     
     selected_dish_ids = [item.dish.id for item in menu_items]
@@ -657,10 +675,10 @@ def operator_menu_override_create(request):
                     except (Dish.DoesNotExist, ValueError):
                         continue
             
-            messages.success(request, 'РџРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ РјРµРЅСЋ СѓСЃРїРµС€РЅРѕ СЃРѕР·РґР°РЅРѕ!')
+            messages.success(request, 'Переопределение меню успешно создано.')
             return redirect('operator_menu_override_detail', pk=override.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕР·РґР°РЅРёРё РїРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёСЏ: {str(e)}')
+            messages.error(request, f'Ошибка при создании переопределения: {str(e)}')
     
     context = {
         'all_dishes': all_dishes,
@@ -722,10 +740,10 @@ def operator_menu_override_edit(request, pk):
                         except (Dish.DoesNotExist, ValueError):
                             continue
             
-            messages.success(request, 'РџРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ РјРµРЅСЋ СѓСЃРїРµС€РЅРѕ РѕР±РЅРѕРІР»РµРЅРѕ!')
+            messages.success(request, 'Переопределение меню успешно обновлено.')
             return redirect('operator_menu_override_detail', pk=override.pk)
         except Exception as e:
-            messages.error(request, f'РћС€РёР±РєР° РїСЂРё СЃРѕС…СЂР°РЅРµРЅРёРё: {str(e)}')
+            messages.error(request, f'Ошибка при сохранении: {str(e)}')
     
     selected_dishes_add = [item.dish.id for item in items if item.action == 'add']
     selected_dishes_remove = [item.dish.id for item in items if item.action == 'remove']
@@ -748,7 +766,7 @@ def operator_menu_override_delete(request, pk):
     
     if request.method == 'POST':
         override.delete()
-        messages.success(request, 'РџРµСЂРµРѕРїСЂРµРґРµР»РµРЅРёРµ РјРµРЅСЋ СѓСЃРїРµС€РЅРѕ СѓРґР°Р»РµРЅРѕ!')
+        messages.success(request, 'Переопределение меню успешно удалено.')
         return redirect('operator_menus')
     
     context = {'override': override}
@@ -1038,10 +1056,10 @@ def client_complaint_create(request):
         subject = request.POST.get('subject', '').strip()
         message = request.POST.get('message', '').strip()
         if not subject or not message:
-            messages.error(request, 'Р—Р°РїРѕР»РЅРёС‚Рµ С‚РµРјСѓ Рё С‚РµРєСЃС‚ Р¶Р°Р»РѕР±С‹.')
+            messages.error(request, 'Заполните тему и текст жалобы.')
         else:
             VenueComplaint.objects.create(user=request.user, subject=subject, message=message)
-            messages.success(request, 'Р–Р°Р»РѕР±Р° РѕС‚РїСЂР°РІР»РµРЅР°. РњС‹ СЂР°СЃСЃРјРѕС‚СЂРёРј РµС‘ РІ Р±Р»РёР¶Р°Р№С€РµРµ РІСЂРµРјСЏ.')
+            messages.success(request, 'Жалоба отправлена. Мы рассмотрим ее в ближайшее время.')
             return redirect('client_complaint_list')
     return render(request, 'bookings/client_complaint_form.html')
 

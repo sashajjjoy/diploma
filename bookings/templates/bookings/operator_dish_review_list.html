@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Отзывы о блюдах{% endblock %}
+
+{% block content %}
+<section class="card">
+    <div class="section-head">
+        <div>
+            <div class="page-kicker">Оператор</div>
+            <h2>Все отзывы о блюдах</h2>
+        </div>
+    </div>
+    {% if reviews %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Блюдо</th>
+                    <th>Клиент</th>
+                    <th>Оценка</th>
+                    <th>Комментарий</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>
+                        {% if review.order_item.dish_id %}
+                        <a href="{% url 'operator_dish_detail' review.order_item.dish_id %}">{{ review.order_item.dish_name_snapshot }}</a>
+                        {% else %}
+                        {{ review.order_item.dish_name_snapshot }}
+                        {% endif %}
+                    </td>
+                    <td>{{ review.order_item.order.user.get_full_name|default:review.order_item.order.user.username }}</td>
+                    <td><span class="pill">{{ review.rating }}/5</span></td>
+                    <td>{{ review.comment|default:"Без комментария" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">Отзывов пока нет.</div>
+    {% endif %}
+</section>
+{% endblock %}

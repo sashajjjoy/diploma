@@ -35,15 +35,12 @@
                 {% if user.is_authenticated %}
                     {% if user|get_user_role == 'operator' %}
                         <a href="{% url 'operator_cabinet' %}" class="nav-link {% if request.path == '/dashboard/operator/' %}is-active{% endif %}">Главная</a>
-                        <a href="{% url 'operator_reservations' %}" class="nav-link {% if '/dashboard/operator/reservations' in request.path %}is-active{% endif %}">Бронирования</a>
                         <a href="{% url 'operator_tables' %}" class="nav-link {% if '/dashboard/operator/tables' in request.path %}is-active{% endif %}">Столики</a>
-                        <a href="{% url 'operator_dishes' %}" class="nav-link {% if '/dashboard/operator/dishes' in request.path %}is-active{% endif %}">Блюда</a>
                         <a href="{% url 'operator_menus' %}" class="nav-link {% if '/dashboard/operator/menus' in request.path or '/dashboard/operator/menu-overrides' in request.path %}is-active{% endif %}">Меню</a>
                         <a href="{% url 'operator_service_slots' %}" class="nav-link {% if '/dashboard/operator/service-slots' in request.path %}is-active{% endif %}">Слоты</a>
                         <a href="{% url 'operator_reports' %}" class="nav-link {% if '/dashboard/operator/reports' in request.path %}is-active{% endif %}">Отчёты</a>
                         <a href="{% url 'operator_news_list' %}" class="nav-link {% if '/dashboard/operator/news' in request.path %}is-active{% endif %}">Новости</a>
                         <a href="{% url 'operator_promotion_list' %}" class="nav-link {% if '/dashboard/operator/promotions' in request.path %}is-active{% endif %}">Акции</a>
-                        <a href="{% url 'operator_complaint_list' %}" class="nav-link {% if '/dashboard/operator/complaints' in request.path %}is-active{% endif %}">Жалобы</a>
                     {% elif user.is_superuser or user|get_user_role == 'admin' %}
                         <a href="{% url 'admin_cabinet' %}" class="nav-link {% if '/dashboard/admin/cabinet' in request.path %}is-active{% endif %}">Главная</a>
                         <a href="{% url 'admin_integrations' %}" class="nav-link {% if '/dashboard/admin/integrations' in request.path %}is-active{% endif %}">Интеграции</a>
@@ -54,7 +51,6 @@
                     {% else %}
                         <a href="{% url 'home' %}" class="nav-link {% if request.path == '/' %}is-active{% endif %}">Главная</a>
                         <a href="{% url 'client_promotion_list' %}" class="nav-link {% if '/dashboard/client/promotions' in request.path %}is-active{% endif %}">Акции</a>
-                        <a href="{% url 'client_today_menu' %}" class="nav-link {% if '/dashboard/client/menu/today' in request.path %}is-active{% endif %}">Меню</a>
                         <a href="{% url 'client_news_list' %}" class="nav-link {% if '/dashboard/client/news' in request.path %}is-active{% endif %}">Новости</a>
                         <a href="{% url 'client_complaint_create' %}" class="nav-link {% if '/dashboard/client/complaints' in request.path %}is-active{% endif %}">Жалоба</a>
                     {% endif %}

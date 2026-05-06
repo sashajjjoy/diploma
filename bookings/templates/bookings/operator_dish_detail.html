@@ -68,4 +68,42 @@
     <div class="empty-state">Блюдо ещё не использовалось в бронированиях и предзаказах.</div>
     {% endif %}
 </section>
+
+<section class="card">
+    <div class="section-head">
+        <div>
+            <div class="page-kicker">Отзывы</div>
+            <h2>Последние отзывы по блюду</h2>
+        </div>
+        <div class="panel-actions">
+            <a href="{% url 'operator_dish_review_list' %}" class="btn btn-secondary">Все отзывы</a>
+        </div>
+    </div>
+    {% if reviews %}
+    <div class="table-shell">
+        <table>
+            <thead>
+                <tr>
+                    <th>Дата</th>
+                    <th>Клиент</th>
+                    <th>Оценка</th>
+                    <th>Комментарий</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for review in reviews %}
+                <tr>
+                    <td>{{ review.created_at|date:"d.m.Y H:i" }}</td>
+                    <td>{{ review.order_item.order.user.get_full_name|default:review.order_item.order.user.username }}</td>
+                    <td><span class="pill">{{ review.rating }}/5</span></td>
+                    <td>{{ review.comment|default:"Без комментария"|truncatechars:120 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="empty-state">По этому блюду пока нет отзывов.</div>
+    {% endif %}
+</section>
 {% endblock %}

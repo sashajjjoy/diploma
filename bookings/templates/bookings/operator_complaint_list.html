@@ -21,7 +21,7 @@
                 {% for c in complaints %}
                 <tr>
                     <td>{{ c.created_at|date:"d.m.Y H:i" }}</td>
-                    <td>{{ c.user.username }}</td>
+                    <td>{{ c.user.get_full_name|default:c.user.username }}</td>
                     <td>{{ c.subject }}</td>
                     <td>{{ c.message|truncatewords:25 }}</td>
                     <td>

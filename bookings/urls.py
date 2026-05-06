@@ -38,6 +38,7 @@ urlpatterns = [
     path('operator/dishes/', views.operator_dishes, name='operator_dishes'),
     path('operator/dishes/create/', views.operator_dish_create, name='operator_dish_create'),
     path('operator/dishes/<int:pk>/', views.operator_dish_detail, name='operator_dish_detail'),
+    path('operator/reviews/', views.operator_dish_review_list, name='operator_dish_review_list'),
     path('operator/dishes/<int:pk>/edit/', views.operator_dish_edit, name='operator_dish_edit'),
     path('operator/dishes/<int:pk>/delete/', views.operator_dish_delete, name='operator_dish_delete'),
     

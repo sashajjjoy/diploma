@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from bookings.models import MenuOverride, WeeklyMenu
+from bookings.models import MenuOverride, WeeklyMenu, WeeklyMenuDaySettings, WeeklyMenuItem
 
 
 DEFAULT_WEEKLY_MENU_NAME = "Default weekly menu"
@@ -19,20 +19,32 @@ def get_menu_dishes_for_date(target_date):
     Base weekly menu is resolved first, then active overrides are applied
     by priority, date_from, and id.
     """
-    weekly_menu = _get_active_weekly_menu()
-    if weekly_menu is None:
-        return []
-
     final_dish_ids = []
-    day = (
-        weekly_menu.days.filter(day_of_week=target_date.weekday(), is_active=True)
-        .prefetch_related("items__dish")
-        .first()
-    )
-    if day is not None:
+    weekly_menu = _get_active_weekly_menu()
+    # Prefer legacy weekly settings because operator menu screens still edit these tables.
+    legacy_day = WeeklyMenuDaySettings.objects.filter(
+        day_of_week=target_date.weekday(),
+        is_active=True,
+    ).first()
+    if legacy_day is not None:
         final_dish_ids = list(
-            day.items.order_by("sort_order", "dish__name").values_list("dish_id", flat=True)
+            WeeklyMenuItem.objects.filter(day_settings=legacy_day)
+            .order_by("order", "dish__name")
+            .values_list("dish_id", flat=True)
         )
+    else:
+        if weekly_menu is not None:
+            day = (
+                weekly_menu.days.filter(day_of_week=target_date.weekday(), is_active=True)
+                .prefetch_related("items__dish")
+                .first()
+            )
+            if day is not None:
+                final_dish_ids = list(
+                    day.items.order_by("sort_order", "dish__name").values_list("dish_id", flat=True)
+                )
+        else:
+            weekly_menu = None
 
     active_overrides = (
         MenuOverride.objects.filter(

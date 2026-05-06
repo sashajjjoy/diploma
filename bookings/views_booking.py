@@ -125,20 +125,26 @@ def _client_form_context(*, now, reservations=None):
     available_dates = _available_dates(now)
     duration_options = get_duration_values()
     time_slots = _client_time_slots(available_dates, duration_options)
-    all_dishes = Dish.objects.filter(available_quantity__gt=0).order_by("name")
 
     import json
 
-    today_menu_ids = list(get_menu_dishes_for_date(now.date()))
-    today_menu_dishes = _ordered_dishes_for_ids(today_menu_ids)
-    # On the client main page show only dishes available today.
-    dishes_by_date = {date_key: today_menu_ids for date_key, _, _ in available_dates}
-    return {        "reservations": reservations or [],
+    dishes_by_date = {
+        date_key: list(get_menu_dishes_for_date(date_obj))
+        for date_key, _, date_obj in available_dates
+    }
+    union_dish_ids = []
+    for dish_ids in dishes_by_date.values():
+        for dish_id in dish_ids:
+            if dish_id not in union_dish_ids:
+                union_dish_ids.append(dish_id)
+    visible_dishes = _ordered_dishes_for_ids(union_dish_ids)
+    return {
+        "reservations": reservations or [],
         "available_dates": available_dates,
         "time_slots": time_slots,
         "duration_options": duration_options,
-        "all_dishes": today_menu_dishes,
-        "today_menu_dishes": today_menu_dishes,
+        "all_dishes": visible_dishes,
+        "today_menu_dishes": visible_dishes,
         "today_menu_date": now.date(),
         "dishes_by_date": json.dumps(dishes_by_date),
         **client_home_promotion_context(),
@@ -313,12 +319,12 @@ def reservation_edit(request, pk):
 
     now = timezone.localtime(timezone.now())
     available_dates = _available_dates(now)
+    reservation_date = timezone.localtime(reservation.start_time).date()
+    reservation_duration = int((reservation.end_time - reservation.start_time).total_seconds() / 60)
     duration_options = get_duration_values()
     if reservation_duration not in duration_options:
         duration_options = sorted(duration_options + [reservation_duration])
     time_slots = _client_time_slots(available_dates, duration_options)
-    reservation_date = timezone.localtime(reservation.start_time).date()
-    reservation_duration = int((reservation.end_time - reservation.start_time).total_seconds() / 60)
 
     selected_date_key = next(
         (date_key for date_key, _, date_obj in available_dates if date_obj == reservation_date),
@@ -370,6 +376,50 @@ def reservation_delete(request, pk):
 def admin_cabinet(request):
     _ensure_profiles()
     if request.method == "POST":
+        action = request.POST.get("action", "update_user")
+        if action == "create_user":
+            username = request.POST.get("username", "").strip()
+            first_name = request.POST.get("first_name", "").strip()
+            last_name = request.POST.get("last_name", "").strip()
+            email = request.POST.get("email", "").strip()
+            phone = request.POST.get("phone", "").strip()
+            role = request.POST.get("role", UserProfile.ROLE_CLIENT)
+            is_active = request.POST.get("is_active") == "on"
+            password = request.POST.get("password", "")
+            if not username:
+                messages.error(request, "Логин не может быть пустым.")
+                return redirect("admin_cabinet")
+            if User.objects.filter(username=username).exists():
+                messages.error(request, "Пользователь с таким логином уже существует.")
+                return redirect("admin_cabinet")
+            if email:
+                try:
+                    validate_email(email)
+                except ValidationError:
+                    messages.error(request, "Укажите корректный email.")
+                    return redirect("admin_cabinet")
+            if len(password) < 6:
+                messages.error(request, "Пароль должен содержать минимум 6 символов.")
+                return redirect("admin_cabinet")
+            allowed_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
+            if role not in allowed_roles:
+                messages.error(request, "Выбрана недопустимая роль.")
+                return redirect("admin_cabinet")
+            created_user = User.objects.create_user(
+                username=username,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                is_active=is_active,
+            )
+            UserProfile.objects.update_or_create(
+                user=created_user,
+                defaults={"role": role, "phone": phone or None},
+            )
+            messages.success(request, f"Пользователь {created_user.username} успешно создан.")
+            return redirect("admin_cabinet")
+
         user_id = request.POST.get("user_id")
         managed_user = get_object_or_404(User.objects.select_related("profile"), pk=user_id)
         profile, _ = UserProfile.objects.get_or_create(user=managed_user, defaults={"role": UserProfile.ROLE_CLIENT})
@@ -388,7 +438,7 @@ def admin_cabinet(request):
         profile.role = cleaned["role"]
         profile.phone = cleaned["phone"] or None
         profile.save(update_fields=["role", "phone"])
-        messages.success(request, f"Р”Р°РЅРЅС‹Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ {managed_user.username} РѕР±РЅРѕРІР»РµРЅС‹.")
+        messages.success(request, f"Данные пользователя {managed_user.username} обновлены.")
         return redirect("admin_cabinet")
 
     now = timezone.now()
@@ -410,12 +460,10 @@ def admin_cabinet(request):
             "admins_total": UserProfile.objects.filter(role=UserProfile.ROLE_ADMIN).count(),
             "integrations_total": integrations_total,
             "backups_total": backups_total,
-            "dishes_low_stock": list(Dish.objects.filter(available_quantity__lt=LOW_STOCK_THRESHOLD).order_by("available_quantity", "name")[:12]),
             "users_by_role": _role_summary(),
             "recent_reservations": booking_detail_queryset().order_by("-created_at")[:10],
             "managed_users": users,
             "role_choices": UserProfile.ROLE_CHOICES,
-            "low_stock_threshold": LOW_STOCK_THRESHOLD,
         },
     )
 
