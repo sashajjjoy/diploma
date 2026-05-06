@@ -584,9 +584,16 @@ class CustomerOrder(models.Model):
         return (boundary - now) >= timedelta(minutes=settings.booking_lead_time_minutes)
 
     def save(self, *args, **kwargs):
+        if self.public_id is not None and CustomerOrder.objects.exclude(pk=self.pk).filter(public_id=self.public_id).exists():
+            max_public_id = CustomerOrder.objects.aggregate(max_public_id=Max("public_id"))["max_public_id"] or 0
+            self.public_id = max_public_id + 1
         super().save(*args, **kwargs)
         if self.public_id is None:
-            self.public_id = self.pk
+            next_public_id = self.pk
+            if CustomerOrder.objects.exclude(pk=self.pk).filter(public_id=next_public_id).exists():
+                max_public_id = CustomerOrder.objects.aggregate(max_public_id=Max("public_id"))["max_public_id"] or 0
+                next_public_id = max(max_public_id, self.pk or 0) + 1
+            self.public_id = next_public_id
             super().save(update_fields=["public_id"])
 
 

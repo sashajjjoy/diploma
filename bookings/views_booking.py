@@ -240,7 +240,7 @@ def reservation_create(request):
             messages.success(request, "Бронирование успешно создано.")
             return redirect("reservation_detail", pk=get_public_id(created))
         except (ValueError, TypeError) as exc:
-            messages.error(request, f"РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґР°РЅРЅС‹С…: {exc}")
+            messages.error(request, f"Ошибка при обработке данных: {exc}")
         except ValidationError as exc:
             message_dict = getattr(exc, "message_dict", {"detail": exc.messages})
             for errors in message_dict.values():
@@ -310,7 +310,7 @@ def reservation_edit(request, pk):
             messages.success(request, "Бронирование успешно изменено.")
             return redirect("reservation_detail", pk=get_public_id(updated))
         except (ValueError, TypeError) as exc:
-            messages.error(request, f"РћС€РёР±РєР° РїСЂРё РѕР±СЂР°Р±РѕС‚РєРµ РґР°РЅРЅС‹С…: {exc}")
+            messages.error(request, f"Ошибка при обработке данных: {exc}")
         except ValidationError as exc:
             message_dict = getattr(exc, "message_dict", {"detail": exc.messages})
             for errors in message_dict.values():
@@ -486,7 +486,7 @@ def admin_integrations(request):
         try:
             integration.full_clean()
             integration.save()
-            messages.success(request, "РРЅС‚РµРіСЂР°С†РёСЏ СЃРѕС…СЂР°РЅРµРЅР°.")
+            messages.success(request, "Интеграция сохранена.")
         except ValidationError as exc:
             for errors in getattr(exc, "message_dict", {"detail": exc.messages}).values():
                 for error in errors:
@@ -506,7 +506,7 @@ def admin_integration_delete(request, pk):
     integration = get_object_or_404(ExternalIntegration, pk=pk)
     if request.method == "POST":
         integration.delete()
-        messages.success(request, "РРЅС‚РµРіСЂР°С†РёСЏ СѓРґР°Р»РµРЅР°.")
+        messages.success(request, "Интеграция удалена.")
         return redirect("admin_integrations")
     return render(request, "bookings/admin_integration_confirm_delete.html", {"integration": integration})
 
@@ -517,9 +517,9 @@ def admin_integration_test(request, pk):
     integration = get_object_or_404(ExternalIntegration, pk=pk)
     success, note = check_external_integration(integration)
     if success:
-        messages.success(request, f"РџСЂРѕРІРµСЂРєР° РїСЂРѕС€Р»Р° СѓСЃРїРµС€РЅРѕ: {note}")
+        messages.success(request, f"Проверка прошла успешно: {note}")
     else:
-        messages.error(request, f"РџСЂРѕРІРµСЂРєР° Р·Р°РІРµСЂС€РёР»Р°СЃСЊ РѕС€РёР±РєРѕР№: {note}")
+        messages.error(request, f"Проверка завершилась ошибкой: {note}")
     return redirect("admin_integrations")
 
 
@@ -532,7 +532,7 @@ def admin_security(request):
         if action == "unlock":
             attempt = get_object_or_404(LoginAttempt, pk=request.POST.get("attempt_id"))
             unlock_login_attempt(attempt)
-            messages.success(request, f"Р›РѕРіРёРЅ {attempt.username} СЂР°Р·Р±Р»РѕРєРёСЂРѕРІР°РЅ.")
+            messages.success(request, f"Логин {attempt.username} разблокирован.")
             return redirect("admin_security")
         settings_obj.session_timeout_minutes = int(request.POST.get("session_timeout_minutes") or settings_obj.session_timeout_minutes)
         settings_obj.max_failed_login_attempts = int(request.POST.get("max_failed_login_attempts") or settings_obj.max_failed_login_attempts)
@@ -554,7 +554,7 @@ def admin_backups(request):
         action = request.POST.get("action")
         if action == "create_backup":
             archive = create_backup_archive(user=request.user)
-            messages.success(request, f"Р РµР·РµСЂРІРЅР°СЏ РєРѕРїРёСЏ {archive.original_name} СЃРѕР·РґР°РЅР°.")
+            messages.success(request, f"Резервная копия {archive.original_name} создана.")
             return redirect("admin_backups")
         if action == "upload_backup" and request.FILES.get("backup_file"):
             uploaded = request.FILES["backup_file"]
@@ -563,7 +563,7 @@ def admin_backups(request):
                 original_name=uploaded.name,
                 created_by=request.user,
             )
-            messages.success(request, f"РђСЂС…РёРІ {archive.original_name} Р·Р°РіСЂСѓР¶РµРЅ.")
+            messages.success(request, f"Архив {archive.original_name} загружен.")
             return redirect("admin_backups")
     return render(request, "bookings/admin_backups.html", {"archives": BackupArchive.objects.select_related("created_by", "restored_by").order_by("-created_at")})
 
@@ -590,7 +590,7 @@ def admin_backup_restore(request, pk):
             return redirect("admin_backup_restore", pk=pk)
         restore_backup_archive(archive=archive, user=request.user)
         request.session.pop(token_key, None)
-        messages.success(request, f"Р’РѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРёРµ РёР· Р°СЂС…РёРІР° {archive.original_name} РІС‹РїРѕР»РЅРµРЅРѕ.")
+        messages.success(request, f"Восстановление из архива {archive.original_name} выполнено.")
         return redirect("admin_backups")
     token = f"{pk}-{timezone.now().timestamp():.0f}"
     request.session[token_key] = token
