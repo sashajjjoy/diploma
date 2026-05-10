@@ -43,7 +43,6 @@
                         <a href="{% url 'operator_promotion_list' %}" class="nav-link {% if '/dashboard/operator/promotions' in request.path %}is-active{% endif %}">Акции</a>
                     {% elif user.is_superuser or user|get_user_role == 'admin' %}
                         <a href="{% url 'admin_cabinet' %}" class="nav-link {% if '/dashboard/admin/cabinet' in request.path %}is-active{% endif %}">Главная</a>
-                        <a href="{% url 'admin_integrations' %}" class="nav-link {% if '/dashboard/admin/integrations' in request.path %}is-active{% endif %}">Интеграции</a>
                         <a href="{% url 'admin_security' %}" class="nav-link {% if '/dashboard/admin/security' in request.path %}is-active{% endif %}">Безопасность</a>
                         <a href="{% url 'admin_backups' %}" class="nav-link {% if '/dashboard/admin/backups' in request.path %}is-active{% endif %}">Резервные копии</a>
                         <a href="{% url 'admin_reports' %}" class="nav-link {% if '/dashboard/admin/reports' in request.path %}is-active{% endif %}">Отчёты</a>

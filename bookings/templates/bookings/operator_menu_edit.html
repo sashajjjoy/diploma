@@ -1,10 +1,32 @@
 {% extends "base.html" %}
 
-{% block title %}Редактирование меню - {{ menu.get_day_of_week_display }}{% endblock %}
+{% block title %}
+Редактирование меню -
+{% if menu.day_of_week == 0 %}Понедельник
+{% elif menu.day_of_week == 1 %}Вторник
+{% elif menu.day_of_week == 2 %}Среда
+{% elif menu.day_of_week == 3 %}Четверг
+{% elif menu.day_of_week == 4 %}Пятница
+{% elif menu.day_of_week == 5 %}Суббота
+{% elif menu.day_of_week == 6 %}Воскресенье
+{% else %}{{ menu.get_day_of_week_display }}
+{% endif %}
+{% endblock %}
 
 {% block content %}
 <div class="card">
-    <h2>Редактирование меню на {{ menu.get_day_of_week_display }}</h2>
+    <h2>
+        Редактирование меню на
+        {% if menu.day_of_week == 0 %}Понедельник
+        {% elif menu.day_of_week == 1 %}Вторник
+        {% elif menu.day_of_week == 2 %}Среда
+        {% elif menu.day_of_week == 3 %}Четверг
+        {% elif menu.day_of_week == 4 %}Пятница
+        {% elif menu.day_of_week == 5 %}Суббота
+        {% elif menu.day_of_week == 6 %}Воскресенье
+        {% else %}{{ menu.get_day_of_week_display }}
+        {% endif %}
+    </h2>
     
     <form method="post">
         {% csrf_token %}

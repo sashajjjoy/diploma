@@ -1131,6 +1131,13 @@ tbody tr:last-child td {
     gap: 1rem;
 }
 
+.operator-menu-top {
+    display: grid;
+    grid-template-columns: minmax(0, 460px) minmax(0, 1fr);
+    gap: 1rem;
+    align-items: start;
+}
+
 .calendar-nav {
     display: flex;
     align-items: center;
@@ -1239,6 +1246,10 @@ tbody tr:last-child td {
 }
 
 @media (max-width: 780px) {
+    .operator-menu-top {
+        grid-template-columns: 1fr;
+    }
+
     .navbar-inner {
         flex-wrap: wrap;
     }
